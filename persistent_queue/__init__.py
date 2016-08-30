@@ -84,10 +84,17 @@ class PersistentQueue:
         self.file.seek(0, 0)  # Go to the beginning of the file
         self.file.write(struct.pack(HEADER_STRUCT[0], length))
 
-    def push(self, item):
+    def push(self, items):
+        if not isinstance(items, list):
+            items = [items]
+
         self.file.seek(0, 2)  # Go to end of file
-        self.write_data(item)
-        self.update_length(self.count() + 1)
+
+        for i in items:
+            print(i)
+            self.write_data(i)
+
+        self.update_length(self.count() + len(items))
 
     def clear(self):
         self.file.close()
@@ -97,10 +104,17 @@ class PersistentQueue:
         pass
 
     def peek(self, items=1):
-        pass
+        self.file.seek(START_OFFSET, 0)  # Start at beginning of file
 
-    def copy(self):
-        pass
+        length = self.count()
+        items = length if items > length else items
+
+        data = [self.read_data() for i in range(items)]
+
+        if items == 1:
+            return data[0]
+        else:
+            return data
 
     @return_file_position
     def count(self):
