@@ -51,7 +51,31 @@ class TestPersistentQueue(fake_filesystem_unittest.TestCase):
         self.assertEqual(queue.peek(5), [5, 10, 15, 20, data])
 
     def test_pop(self):
-        pass
+        queue = PersistentQueue()
+        queue.push('a')
+        queue.push('b')
+        self.assertEqual(len(queue), 2)
+
+        self.assertEqual(queue.pop(), 'a')
+        self.assertEqual(len(queue), 1)
+
+        self.assertEqual(queue.pop(1), 'b')
+        self.assertEqual(len(queue), 0)
+
+        queue.push('a')
+        queue.push('b')
+        queue.push('c')
+        queue.push('d')
+        self.assertEqual(len(queue), 4)
+
+        self.assertEqual(queue.pop(3), ['a', 'b', 'c'])
+        self.assertEqual(len(queue), 1)
+
+        self.assertEqual(queue.pop(100), ['d'])
+        self.assertEqual(len(queue), 0)
+
+        self.assertEqual(queue.pop(100), [])
+        self.assertEqual(queue.pop(), None)
 
     def test_peek(self):
         queue = PersistentQueue()
@@ -65,6 +89,16 @@ class TestPersistentQueue(fake_filesystem_unittest.TestCase):
         self.assertEqual(queue.peek(3), [1, 2, "test"])
 
         self.assertEqual(queue.peek(100), [1, 2, "test"])
+
+        queue.clear()
+
+        queue.push(1)
+        self.assertEqual(len(queue), 1)
+        self.assertEqual(queue.peek(), 1)
+        self.assertEqual(queue.peek(1), 1)
+        self.assertEqual(queue.peek(2), [1])
+
+
 
 
 if __name__ == '__main__':

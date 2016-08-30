@@ -31,7 +31,7 @@ class PersistentQueue:
 
         if mode == 'w+b':
             # write length and start pointer
-            file.write(struct.pack(HEADER_STRUCT, 0, 0))
+            file.write(struct.pack(HEADER_STRUCT, 0, START_OFFSET))
 
         return file
 
@@ -48,41 +48,30 @@ class PersistentQueue:
         data = self.file.read(length)
         return pickle.loads(data)
 
-    # TODO: Make this private
-    def get_data(self, start, end):
-        self.file.seek(START_OFFSET, 0)  # Start at beginning of file
-
-        if start is None:
-            start = 0
-
-        print("-" * 80)
-        print("start:", start)
-        print("end:", end)
-
-        # TODO: Make sure start and end are not greater than len
-        for i in range(start):
-            print(i)
-            length = struct.unpack(LENGTH_STRUCT, self.file.read(4))[0]
-            self.file.seek(length, 1)
-
-        if end is None:
-            print("setting end to count")
-            end = self.count()
-
-        print("start:", start)
-        print("end:", end)
-
-        items = []
-        for i in range(end - start):
-            items.append(self.read_data())
-
-        print("-" * 80)
-        return items
-
     @return_file_position
     def update_length(self, length):
         self.file.seek(0, 0)  # Go to the beginning of the file
         self.file.write(struct.pack(HEADER_STRUCT[0], length))
+
+    @return_file_position
+    def count(self):
+        self.file.seek(0, 0)  # Start at beginning of file
+        length = struct.unpack(HEADER_STRUCT[0], self.file.read(4))[0]
+        return length
+
+    @return_file_position
+    def get_queue_top(self):
+        self.file.seek(START_OFFSET - 4, 0)  # Start at beginning of file
+        pos = struct.unpack(HEADER_STRUCT[1], self.file.read(4))[0]
+        return pos
+
+    @return_file_position
+    def set_queue_top(self, top):
+        self.file.seek(START_OFFSET - 4, 0)  # Start at beginning of file
+        self.file.write(struct.pack(HEADER_STRUCT[1], top))
+
+    def flush(self):
+        pass
 
     def push(self, items):
         if not isinstance(items, list):
@@ -101,26 +90,32 @@ class PersistentQueue:
         self.file = self._open_file(mode='w+b')
 
     def pop(self, items=1):
-        pass
+        data = self.peek(items)
+        self.set_queue_top(self.file.tell())
+
+        if isinstance(data, list):
+            if len(data) > 0:
+                self.update_length(self.count() - len(data))
+        elif data is not None:
+            self.update_length(self.count() - 1)
+
+        return data
 
     def peek(self, items=1):
-        self.file.seek(START_OFFSET, 0)  # Start at beginning of file
+        self.file.seek(self.get_queue_top(), 0)  # Start at beginning of data
 
         length = self.count()
-        items = length if items > length else items
+        total_items = length if items > length else items
 
-        data = [self.read_data() for i in range(items)]
+        data = [self.read_data() for i in range(total_items)]
 
         if items == 1:
-            return data[0]
+            if len(data) == 0:
+                return None
+            else:
+                return data[0]
         else:
             return data
-
-    @return_file_position
-    def count(self):
-        self.file.seek(0, 0)  # Start at beginning of file
-        length = struct.unpack(HEADER_STRUCT[0], self.file.read(4))[0]
-        return length
 
     def __len__(self):
         return self.count()
