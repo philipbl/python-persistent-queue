@@ -24,7 +24,6 @@ class PersistentList:
 
         return file
 
-
     # TODO: Protect this method
     def write_data(self, item):
         data = pickle.dumps(item)
@@ -33,6 +32,7 @@ class PersistentList:
 
     # TODO: Protect this method
     def read_data(self):
+        print("Reading data:", self.file.tell())
         length = struct.unpack(LENGTH_STRUCT, self.file.read(4))[0]
         data = self.file.read(length)
         return pickle.loads(data)
@@ -41,6 +41,7 @@ class PersistentList:
     def get_data(self, start, end):
         self.file.seek(START_OFFSET, 0)  # Start at beginning of file
 
+        print("-" * 80)
         print("start:", start)
         print("end:", end)
 
@@ -51,12 +52,17 @@ class PersistentList:
             self.file.seek(length, 1)
 
         if end is None:
+            print("setting end to count")
             end = self.count()
+
+        print("start:", start)
+        print("end:", end)
 
         items = []
         for i in range(end - start):
             items.append(self.read_data())
 
+        print("-" * 80)
         return items
 
     def update_length(self, length):
@@ -76,8 +82,12 @@ class PersistentList:
         pass
 
     def count(self):
+        current = self.file.tell()
         self.file.seek(0, 0)  # Start at beginning of file
-        return struct.unpack(HEADER_STRUCT[0], self.file.read(4))[0]
+        length = struct.unpack(HEADER_STRUCT[0], self.file.read(4))[0]
+        self.file.seek(current, 0)  # Return back to position
+
+        return length
 
     def __del__(self):
         pass
