@@ -17,7 +17,7 @@ def return_file_position(f):
         return r
     return wrapped
 
-class PersistentList:
+class PersistentQueue:
     def __init__(self, filename=None, path='.'):
         self.filename = filename or "foobar"
         self.path = path
@@ -84,7 +84,7 @@ class PersistentList:
         self.file.seek(0, 0)  # Go to the beginning of the file
         self.file.write(struct.pack(HEADER_STRUCT[0], length))
 
-    def append(self, item):
+    def push(self, item):
         self.file.seek(0, 2)  # Go to end of file
         self.write_data(item)
         self.update_length(self.count() + 1)
@@ -92,6 +92,12 @@ class PersistentList:
     def clear(self):
         self.file.close()
         self.file = self._open_file(mode='w+b')
+
+    def pop(self, items=1):
+        pass
+
+    def peek(self, items=1):
+        pass
 
     def copy(self):
         pass
@@ -102,44 +108,5 @@ class PersistentList:
         length = struct.unpack(HEADER_STRUCT[0], self.file.read(4))[0]
         return length
 
-    def __del__(self):
-        pass
-
-    def extend(self, lst):
-        for item in lst:
-            self.append(item)
-
-    def __getitem__(self, index):
-        if not isinstance(index, int) and not isinstance(index, slice):
-            raise TypeError("PersistentList indices must be integers or slices, not {}".format(type(index)))
-
-        if isinstance(index, int):
-            return self.get_data(index, index + 1)[0]
-        else:
-            # TODO: Add support for step!
-            # TODO: Add support for higher stop than size
-            print(index)
-
-            # Shortcut for if the start and stop are the same
-            if index.start == index.stop and index.start is not None:
-                return []
-
-            return self.get_data(index.start, index.stop)
-
-    def index(self, item):
-        pass
-
-    def insert(self, item, index):
-        pass
-
     def __len__(self):
         return self.count()
-
-    def pop(self, index):
-        pass
-
-    def remove(self, item):
-        pass
-
-    def reverse(self):
-        pass
