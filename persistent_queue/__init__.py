@@ -36,20 +36,20 @@ class PersistentQueue:
         return file
 
     # TODO: Protect this method
-    def write_data(self, item):
+    def _write_data(self, item):
         data = pickle.dumps(item)
         self.file.write(struct.pack(LENGTH_STRUCT, len(data)))
         self.file.write(data)
 
     # TODO: Protect this method
-    def read_data(self):
+    def _read_data(self):
         print("Reading data:", self.file.tell())
         length = struct.unpack(LENGTH_STRUCT, self.file.read(4))[0]
         data = self.file.read(length)
         return pickle.loads(data)
 
     @return_file_position
-    def update_length(self, length):
+    def _update_length(self, length):
         self.file.seek(0, 0)  # Go to the beginning of the file
         self.file.write(struct.pack(HEADER_STRUCT[0], length))
 
@@ -60,13 +60,13 @@ class PersistentQueue:
         return length
 
     @return_file_position
-    def get_queue_top(self):
+    def _get_queue_top(self):
         self.file.seek(START_OFFSET - 4, 0)  # Start at beginning of file
         pos = struct.unpack(HEADER_STRUCT[1], self.file.read(4))[0]
         return pos
 
     @return_file_position
-    def set_queue_top(self, top):
+    def _set_queue_top(self, top):
         self.file.seek(START_OFFSET - 4, 0)  # Start at beginning of file
         self.file.write(struct.pack(HEADER_STRUCT[1], top))
 
@@ -81,9 +81,9 @@ class PersistentQueue:
 
         for i in items:
             print(i)
-            self.write_data(i)
+            self._write_data(i)
 
-        self.update_length(self.count() + len(items))
+        self._update_length(self.count() + len(items))
 
     def clear(self):
         self.file.close()
@@ -91,23 +91,23 @@ class PersistentQueue:
 
     def pop(self, items=1):
         data = self.peek(items)
-        self.set_queue_top(self.file.tell())
+        self._set_queue_top(self.file.tell())
 
         if isinstance(data, list):
             if len(data) > 0:
-                self.update_length(self.count() - len(data))
+                self._update_length(self.count() - len(data))
         elif data is not None:
-            self.update_length(self.count() - 1)
+            self._update_length(self.count() - 1)
 
         return data
 
     def peek(self, items=1):
-        self.file.seek(self.get_queue_top(), 0)  # Start at beginning of data
+        self.file.seek(self._get_queue_top(), 0)  # Start at beginning of data
 
         length = self.count()
         total_items = length if items > length else items
 
-        data = [self.read_data() for i in range(total_items)]
+        data = [self._read_data() for i in range(total_items)]
 
         if items == 1:
             if len(data) == 0:

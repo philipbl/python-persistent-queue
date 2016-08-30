@@ -99,7 +99,5 @@ class TestPersistentQueue(fake_filesystem_unittest.TestCase):
         self.assertEqual(queue.peek(2), [1])
 
 
-
-
 if __name__ == '__main__':
     unittest.main()
