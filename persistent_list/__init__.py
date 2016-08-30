@@ -52,6 +52,9 @@ class PersistentList:
     def get_data(self, start, end):
         self.file.seek(START_OFFSET, 0)  # Start at beginning of file
 
+        if start is None:
+            start = 0
+
         print("-" * 80)
         print("start:", start)
         print("end:", end)
@@ -116,7 +119,12 @@ class PersistentList:
             # TODO: Add support for step!
             # TODO: Add support for higher stop than size
             print(index)
-            return self.get_data(index.start or 0, index.stop)
+
+            # Shortcut for if the start and stop are the same
+            if index.start == index.stop and index.start is not None:
+                return []
+
+            return self.get_data(index.start, index.stop)
 
     def index(self, item):
         pass
