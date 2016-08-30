@@ -1,3 +1,4 @@
+from functools import wraps
 import os.path
 import pickle
 import struct
@@ -5,6 +6,16 @@ import struct
 LENGTH_STRUCT = 'I'
 HEADER_STRUCT = 'II'
 START_OFFSET = 4 + 4
+
+def return_file_position(f):
+    @wraps(f)
+    def wrapped(self, *args, **kwargs):
+        current_pos = self.file.tell()
+        r = f(self, *args, **kwargs)
+        self.file.seek(current_pos, 0)
+
+        return r
+    return wrapped
 
 class PersistentList:
     def __init__(self, filename=None, path='.'):
@@ -65,6 +76,7 @@ class PersistentList:
         print("-" * 80)
         return items
 
+    @return_file_position
     def update_length(self, length):
         self.file.seek(0, 0)  # Go to the beginning of the file
         self.file.write(struct.pack(HEADER_STRUCT[0], length))
@@ -81,12 +93,10 @@ class PersistentList:
     def copy(self):
         pass
 
+    @return_file_position
     def count(self):
-        current = self.file.tell()
         self.file.seek(0, 0)  # Start at beginning of file
         length = struct.unpack(HEADER_STRUCT[0], self.file.read(4))[0]
-        self.file.seek(current, 0)  # Return back to position
-
         return length
 
     def __del__(self):
