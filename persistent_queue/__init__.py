@@ -7,6 +7,7 @@ LENGTH_STRUCT = 'I'
 HEADER_STRUCT = 'II'
 START_OFFSET = 4 + 4
 
+
 def return_file_position(f):
     @wraps(f)
     def wrapped(self, *args, **kwargs):
@@ -16,6 +17,7 @@ def return_file_position(f):
 
         return r
     return wrapped
+
 
 class PersistentQueue:
     def __init__(self, filename=None, path='.', flush_limit=1048576):
@@ -141,6 +143,9 @@ class PersistentQueue:
                 self._update_length(self.count() - len(data))
         elif data is not None:
             self._update_length(self.count() - 1)
+
+        # I don't want to block sending data back, so start a thread
+        # threading.Thread(target=self.flush)
 
         return data
 

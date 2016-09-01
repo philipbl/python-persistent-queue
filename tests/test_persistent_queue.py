@@ -7,8 +7,7 @@ from persistent_queue import PersistentQueue
 
 class TestPersistentQueue(fake_filesystem_unittest.TestCase):
     def setUp(self):
-        # self.setUpPyfakefs()
-        pass
+        self.setUpPyfakefs()
 
     def test_count(self):
         queue = PersistentQueue()
