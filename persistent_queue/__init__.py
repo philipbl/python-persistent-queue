@@ -21,7 +21,7 @@ def return_file_position(f):
 
 class PersistentQueue:
     def __init__(self, filename=None, path='.', flush_limit=1048576):
-        self.filename = filename or "foobar"
+        self.filename = filename or ".persistent_list"
         self.path = path
         self.file = self._open_file()
         self.flush_limit = flush_limit
