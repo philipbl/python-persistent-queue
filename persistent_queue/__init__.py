@@ -18,10 +18,11 @@ def return_file_position(f):
     return wrapped
 
 class PersistentQueue:
-    def __init__(self, filename=None, path='.'):
+    def __init__(self, filename=None, path='.', flush_limit=1048576):
         self.filename = filename or "foobar"
         self.path = path
         self.file = self._open_file()
+        self.flush_limit = flush_limit
 
     def _open_file(self, mode=None):
         filename = os.path.join(self.path, self.filename)
@@ -35,13 +36,11 @@ class PersistentQueue:
 
         return file
 
-    # TODO: Protect this method
     def _write_data(self, item):
         data = pickle.dumps(item)
         self.file.write(struct.pack(LENGTH_STRUCT, len(data)))
         self.file.write(data)
 
-    # TODO: Protect this method
     def _read_data(self):
         print("Reading data:", self.file.tell())
         length = struct.unpack(LENGTH_STRUCT, self.file.read(4))[0]
@@ -71,7 +70,51 @@ class PersistentQueue:
         self.file.write(struct.pack(HEADER_STRUCT[1], top))
 
     def flush(self):
-        pass
+        pos = self._get_queue_top()
+
+        if pos < self.flush_limit:
+            # Ignore if the file isn't big enough -- it's not worth it
+            print("Ignoring flush")
+            return
+
+        print("*" * 80)
+        print("Flushing!!!")
+        print("*" * 80)
+
+        # Make a new file
+        # TODO: random number rather than -temp
+        temp_filename = os.path.join(self.path, self.filename + '-temp')
+        new_file = open(temp_filename, mode='w+b', buffering=0)
+
+        # LOCK FILE
+
+        # Make sure everything is to disk
+        self.file.flush()
+        os.fsync(self.file.fileno())
+
+        start = self._get_queue_top()  # Get it again in case it changed
+        self.file.seek(0, 2)  # Go to end of file
+        end = self.file.tell()
+
+        # Copy over meta data
+        new_file.write(struct.pack(HEADER_STRUCT, self.count(), START_OFFSET))
+
+        # Copy over data
+        self.file.seek(start, 0)
+        # TODO: This could potentially be huge!!
+        new_file.write(self.file.read(end - start))
+
+        new_file.flush()  # Probably not necessary since buffering=0
+        os.fsync(new_file.fileno())  # TODO: Should I add this to every write?
+        new_file.close()
+        self.file.close()
+
+        # So far everything above this point has been safe. If something
+        # crashed, the data would still be preserved. Now we are entering the
+        # danger zone.
+
+        os.rename(temp_filename, os.path.join(self.path, self.filename))
+        self.file = self._open_file()
 
     def push(self, items):
         if not isinstance(items, list):

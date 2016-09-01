@@ -7,7 +7,8 @@ from persistent_queue import PersistentQueue
 
 class TestPersistentQueue(fake_filesystem_unittest.TestCase):
     def setUp(self):
-        self.setUpPyfakefs()
+        # self.setUpPyfakefs()
+        pass
 
     def test_count(self):
         queue = PersistentQueue()
@@ -98,6 +99,28 @@ class TestPersistentQueue(fake_filesystem_unittest.TestCase):
         self.assertEqual(queue.peek(1), 1)
         self.assertEqual(queue.peek(2), [1])
 
+    def test_big_file(self):
+        queue = PersistentQueue()
+        data = {"a": list(range(1000))}
+
+        for i in range(2000):
+            queue.push(data)
+
+        for i in range(1995):
+            self.assertEqual(queue.pop(), data)
+            queue.flush()
+
+        self.assertEqual(len(queue), 5)
+
+    def test_big_file_2(self):
+        queue = PersistentQueue()
+        data = {"a": list(range(1000))}
+
+        for i in range(2000):
+            queue.push(data)
+
+        self.assertEqual(queue.pop(1995), [data for i in range(1995)])
+        self.assertEqual(len(queue), 5)
 
 if __name__ == '__main__':
     unittest.main()
