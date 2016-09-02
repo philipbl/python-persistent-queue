@@ -22,8 +22,24 @@ queue.push('foobar')
 
 data = queue.pop()  # 1
 
+queue.delete(2)
+data = queue.pop()  # 3
+
 queue.clear()
 ```
 
 Objects that are added to the queue must be pickle-able. A file is saved to the file system based on the name given to the queue. The same name must be given if you want the data to persist.
+
+I created this with the following workflow in mind:
+
+```python
+
+data = queue.peek(5)
+
+success = upload_data_somewhere(data)
+
+if success:
+    queue.delete(5)
+
+```
 

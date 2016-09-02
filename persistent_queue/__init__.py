@@ -175,7 +175,7 @@ class PersistentQueue:
             self.file.seek(self._get_queue_top(), 0)  # Beginning of data
             total_items = self.count() if items > self.count() else items
 
-            for i in range(total_items):
+            for _ in range(total_items):
                 read_length()
 
             self._set_queue_top(self.file.tell())
