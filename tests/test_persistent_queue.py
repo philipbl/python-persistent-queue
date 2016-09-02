@@ -120,5 +120,22 @@ class TestPersistentQueue(unittest.TestCase):
         self.assertEqual(self.queue.pop(1995), [data for i in range(1995)])
         self.assertEqual(len(self.queue), 5)
 
+    def test_copy(self):
+        new_queue_name = 'another_queue'
+        self.queue.push([5, 4, 3, 2, 1])
+        self.assertEqual(len(self.queue), 5)
+        self.assertEqual(self.queue.pop(), 5)
+
+        new_queue = self.queue.copy(new_queue_name)
+
+        self.assertEqual(len(self.queue), len(new_queue))
+        self.assertEqual(self.queue.pop(), new_queue.pop())
+        self.assertEqual(self.queue.pop(), new_queue.pop())
+        self.assertEqual(self.queue.pop(), new_queue.pop())
+        self.assertEqual(self.queue.pop(), new_queue.pop())
+
+        os.remove(new_queue_name)
+
+
 if __name__ == '__main__':
     unittest.main()

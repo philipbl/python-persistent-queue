@@ -1,6 +1,7 @@
 from functools import wraps
 import os.path
 import pickle
+import shutil
 import struct
 import threading
 import uuid
@@ -11,14 +12,12 @@ START_OFFSET = 4 + 4
 
 
 class PersistentQueue:
-    def __init__(self, filename=None, path='.', flush_limit=1048576):
-        self.filename = filename or ".persistent_list"
+    def __init__(self, filename, path='.', flush_limit=1048576):
+        self.filename = filename
         self.path = path
         self.file = self._open_file()
         self.flush_limit = flush_limit
         self.lock = threading.RLock()
-
-    # TODO: Add copy method
 
     def _open_file(self, mode=None):
         filename = os.path.join(self.path, self.filename)
@@ -42,16 +41,6 @@ class PersistentQueue:
 
         self.file.seek(current_pos, 0)
 
-    def count(self):
-        with self.lock:
-            current_pos = self.file.tell()
-
-            self.file.seek(0, 0)  # Start at beginning of file
-            length = struct.unpack(HEADER_STRUCT[0], self.file.read(4))[0]
-
-            self.file.seek(current_pos, 0)
-        return length
-
     def _get_queue_top(self):
         current_pos = self.file.tell()
 
@@ -70,6 +59,30 @@ class PersistentQueue:
         os.fsync(self.file.fileno())
 
         self.file.seek(current_pos, 0)
+
+    def clear(self):
+        with self.lock:
+            self.file.close()
+            self.file = self._open_file(mode='w+b')
+
+    def copy(self, new_filename, path=None):
+        old = os.path.join(self.path, self.filename)
+        new = os.path.join(path or self.path, new_filename)
+        shutil.copy2(old, new)
+
+        return PersistentQueue(filename=new_filename,
+                               path=path or self.path,
+                               flush_limit=self.flush_limit)
+
+    def count(self):
+        with self.lock:
+            current_pos = self.file.tell()
+
+            self.file.seek(0, 0)  # Start at beginning of file
+            length = struct.unpack(HEADER_STRUCT[0], self.file.read(4))[0]
+
+            self.file.seek(current_pos, 0)
+        return length
 
     def flush(self):
         with self.lock:
@@ -114,30 +127,6 @@ class PersistentQueue:
             os.rename(temp_filename, os.path.join(self.path, self.filename))
             self.file = self._open_file()
 
-    def push(self, items):
-        def write_data(item):
-            data = pickle.dumps(item)
-            self.file.write(struct.pack(LENGTH_STRUCT, len(data)))
-            self.file.write(data)
-            self.file.flush()  # Probably not necessary since buffering=0
-            os.fsync(self.file.fileno())
-
-        if not isinstance(items, list):
-            items = [items]
-
-        with self.lock:
-            self.file.seek(0, 2)  # Go to end of file
-
-            for i in items:
-                write_data(i)
-
-            self._update_length(self.count() + len(items))
-
-    def clear(self):
-        with self.lock:
-            self.file.close()
-            self.file = self._open_file(mode='w+b')
-
     def pop(self, items=1):
         with self.lock:
             data = self.peek(items)
@@ -175,6 +164,25 @@ class PersistentQueue:
                 return data[0]
         else:
             return data
+
+    def push(self, items):
+        def write_data(item):
+            data = pickle.dumps(item)
+            self.file.write(struct.pack(LENGTH_STRUCT, len(data)))
+            self.file.write(data)
+            self.file.flush()  # Probably not necessary since buffering=0
+            os.fsync(self.file.fileno())
+
+        if not isinstance(items, list):
+            items = [items]
+
+        with self.lock:
+            self.file.seek(0, 2)  # Go to end of file
+
+            for i in items:
+                write_data(i)
+
+            self._update_length(self.count() + len(items))
 
     def __len__(self):
         return self.count()
