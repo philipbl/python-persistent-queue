@@ -34,6 +34,8 @@ class PersistentQueue:
 
         self.file.seek(0, 0)  # Go to the beginning of the file
         self.file.write(struct.pack(HEADER_STRUCT[0], length))
+        self.file.flush()  # Probably not necessary since buffering=0
+        os.fsync(self.file.fileno())
 
         self.file.seek(current_pos, 0)
 
@@ -61,6 +63,8 @@ class PersistentQueue:
 
         self.file.seek(START_OFFSET - 4, 0)  # Start at beginning of file
         self.file.write(struct.pack(HEADER_STRUCT[1], top))
+        self.file.flush()  # Probably not necessary since buffering=0
+        os.fsync(self.file.fileno())
 
         self.file.seek(current_pos, 0)
 
@@ -96,7 +100,7 @@ class PersistentQueue:
             new_file.write(self.file.read(end - start))
 
             new_file.flush()  # Probably not necessary since buffering=0
-            os.fsync(new_file.fileno())  # TODO: Should I add this to every write?
+            os.fsync(new_file.fileno())
             new_file.close()
             self.file.close()
 
@@ -112,6 +116,8 @@ class PersistentQueue:
             data = pickle.dumps(item)
             self.file.write(struct.pack(LENGTH_STRUCT, len(data)))
             self.file.write(data)
+            self.file.flush()  # Probably not necessary since buffering=0
+            os.fsync(self.file.fileno())
 
         if not isinstance(items, list):
             items = [items]
