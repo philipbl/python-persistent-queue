@@ -3,6 +3,7 @@ import os.path
 import pickle
 import struct
 import threading
+import uuid
 
 LENGTH_STRUCT = 'I'
 HEADER_STRUCT = 'II'
@@ -16,6 +17,8 @@ class PersistentQueue:
         self.file = self._open_file()
         self.flush_limit = flush_limit
         self.lock = threading.RLock()
+
+    # TODO: Add copy method
 
     def _open_file(self, mode=None):
         filename = os.path.join(self.path, self.filename)
@@ -77,8 +80,8 @@ class PersistentQueue:
             return
 
         # Make a new file
-        # TODO: random number rather than -temp
-        temp_filename = os.path.join(self.path, self.filename + '-temp')
+        random = str(uuid.uuid4()).replace('-', '')
+        temp_filename = os.path.join(self.path, self.filename + '-' + random)
         new_file = open(temp_filename, mode='w+b', buffering=0)
 
         # From this point on, the file can not change
