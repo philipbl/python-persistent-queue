@@ -136,6 +136,21 @@ class TestPersistentQueue(unittest.TestCase):
 
         os.remove(new_queue_name)
 
+    def test_usage(self):
+        self.queue.push(1)
+        self.queue.push(2)
+        self.queue.push(3)
+        self.queue.push(['a', 'b', 'c'])
+
+        self.assertEqual(self.queue.peek(), 1)
+        self.assertEqual(self.queue.peek(4), [1, 2, 3, 'a'])
+        self.assertEqual(len(self.queue), 6)
+
+        self.queue.push('foobar')
+
+        self.assertEqual(self.queue.pop(), 1)
+        self.assertEqual(len(self.queue), 6)
+        self.assertEqual(self.queue.pop(6), [2, 3, 'a', 'b', 'c', 'foobar'])
 
 if __name__ == '__main__':
     unittest.main()
