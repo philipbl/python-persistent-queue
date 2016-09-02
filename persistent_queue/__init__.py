@@ -124,7 +124,7 @@ class PersistentQueue:
             # crashed, the data would still be preserved. Now we are entering the
             # danger zone.
 
-            os.rename(temp_filename, os.path.join(self.path, self.filename))
+            os.replace(temp_filename, os.path.join(self.path, self.filename))
             self.file = self._open_file()
 
     def pop(self, items=1):
