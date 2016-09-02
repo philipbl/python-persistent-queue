@@ -1,4 +1,3 @@
-from functools import wraps
 import os.path
 import pickle
 import shutil
@@ -108,7 +107,9 @@ class PersistentQueue:
             end = self.file.tell()
 
             # Copy over meta data
-            new_file.write(struct.pack(HEADER_STRUCT, self.count(), START_OFFSET))
+            new_file.write(struct.pack(HEADER_STRUCT,
+                                       self.count(),
+                                       START_OFFSET))
 
             # Copy over data
             # Do it in chunks so we aren't loading tons of data into memory
@@ -125,8 +126,8 @@ class PersistentQueue:
             self.file.close()
 
             # So far everything above this point has been safe. If something
-            # crashed, the data would still be preserved. Now we are entering the
-            # danger zone.
+            # crashed, the data would still be preserved. Now we are entering
+            # the danger zone.
 
             os.replace(temp_filename, os.path.join(self.path, self.filename))
             self.file = self._open_file()
@@ -157,8 +158,7 @@ class PersistentQueue:
             length = self.count()
             total_items = length if items > length else items
 
-
-            self.file.seek(self._get_queue_top(), 0)  # Start at beginning of data
+            self.file.seek(self._get_queue_top(), 0)  # Beginning of data
             data = [read_data() for i in range(total_items)]
 
         if items == 1:
