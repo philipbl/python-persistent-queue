@@ -18,6 +18,9 @@ class PersistentQueue:
         self.flush_limit = flush_limit
         self.lock = threading.RLock()
 
+        self.file.seek(0, 0)
+        self.length = struct.unpack(HEADER_STRUCT[0], self.file.read(4))[0]
+
     def _open_file(self, mode=None):
         filename = os.path.join(self.path, self.filename)
 
@@ -37,6 +40,8 @@ class PersistentQueue:
         self.file.write(struct.pack(HEADER_STRUCT[0], length))
         self.file.flush()  # Probably not necessary since buffering=0
         os.fsync(self.file.fileno())
+
+        self.length = length
 
         self.file.seek(current_pos, 0)
 
@@ -63,6 +68,7 @@ class PersistentQueue:
         with self.lock:
             self.file.close()
             self.file = self._open_file(mode='w+b')
+            self.length = 0
 
     def copy(self, new_filename, path=None):
         old = os.path.join(self.path, self.filename)
@@ -74,14 +80,7 @@ class PersistentQueue:
                                flush_limit=self.flush_limit)
 
     def count(self):
-        with self.lock:
-            current_pos = self.file.tell()
-
-            self.file.seek(0, 0)  # Start at beginning of file
-            length = struct.unpack(HEADER_STRUCT[0], self.file.read(4))[0]
-
-            self.file.seek(current_pos, 0)
-        return length
+        return self.length
 
     def flush(self):
         with self.lock:
