@@ -111,9 +111,13 @@ class PersistentQueue:
             new_file.write(struct.pack(HEADER_STRUCT, self.count(), START_OFFSET))
 
             # Copy over data
+            # Do it in chunks so we aren't loading tons of data into memory
             self.file.seek(start, 0)
-            # TODO: This could potentially be huge!!
-            new_file.write(self.file.read(end - start))
+            bytes_read = 0
+            chunk_size = 4096
+            while bytes_read < end - start:
+                bytes_read += chunk_size
+                new_file.write(self.file.read(bytes_read))
 
             new_file.flush()  # Probably not necessary since buffering=0
             os.fsync(new_file.fileno())
