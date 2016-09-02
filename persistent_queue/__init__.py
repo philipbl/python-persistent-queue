@@ -154,10 +154,8 @@ class PersistentQueue:
             return pickle.loads(data)
 
         with self.lock:
-            length = self.count()
-            total_items = length if items > length else items
-
             self.file.seek(self._get_queue_top(), 0)  # Beginning of data
+            total_items = self.count() if items > self.count() else items
             data = [read_data() for i in range(total_items)]
 
         if items == 1:
@@ -167,6 +165,24 @@ class PersistentQueue:
                 return data[0]
         else:
             return data
+
+    def delete(self, items=1):
+        def read_length():
+            length = struct.unpack(LENGTH_STRUCT, self.file.read(4))[0]
+            self.file.seek(length, 1)
+
+        with self.lock:
+            self.file.seek(self._get_queue_top(), 0)  # Beginning of data
+            total_items = self.count() if items > self.count() else items
+
+            for i in range(total_items):
+                read_length()
+
+            self._set_queue_top(self.file.tell())
+            self._update_length(self.count() - total_items)
+
+            # I don't want to block sending data back, so start a thread
+            threading.Thread(target=self.flush)
 
     def push(self, items):
         def write_data(item):

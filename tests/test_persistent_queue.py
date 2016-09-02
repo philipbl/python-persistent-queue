@@ -11,6 +11,8 @@ class TestPersistentQueue(unittest.TestCase):
         self.filename = '{}_{}'.format(self.id(), random)
         self.queue = PersistentQueue(self.filename)
 
+        self.persist_filename = ''
+
     def tearDown(self):
         os.remove(self.filename)
 
@@ -151,6 +153,18 @@ class TestPersistentQueue(unittest.TestCase):
         self.assertEqual(self.queue.pop(), 1)
         self.assertEqual(len(self.queue), 6)
         self.assertEqual(self.queue.pop(6), [2, 3, 'a', 'b', 'c', 'foobar'])
+
+    def test_delete(self):
+        self.queue.push(2)
+        self.queue.push(3)
+        self.queue.push(7)
+        self.queue.push(11)
+        self.assertEqual(len(self.queue), 4)
+
+        self.queue.delete(2)
+        self.assertEqual(len(self.queue), 2)
+        self.assertEqual(self.queue.peek(2), [7, 11])
+        self.assertEqual(self.queue.pop(2), [7, 11])
 
 if __name__ == '__main__':
     unittest.main()
