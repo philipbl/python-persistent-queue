@@ -70,12 +70,7 @@ class PersistentQueue:
 
         if pos < self.flush_limit:
             # Ignore if the file isn't big enough -- it's not worth it
-            print("Ignoring flush")
             return
-
-        print("*" * 80)
-        print("Flushing!!!")
-        print("*" * 80)
 
         # Make a new file
         # TODO: random number rather than -temp
@@ -152,7 +147,6 @@ class PersistentQueue:
 
     def peek(self, items=1):
         def read_data():
-            print("Reading data:", self.file.tell())
             length = struct.unpack(LENGTH_STRUCT, self.file.read(4))[0]
             data = self.file.read(length)
             return pickle.loads(data)
