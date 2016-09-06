@@ -1,3 +1,8 @@
+"""
+An implementation of a persistent queue. It is optimized for peeking at values
+and then deleting them off to top of the queue.
+"""
+
 import os.path
 import pickle
 import shutil
@@ -65,12 +70,14 @@ class PersistentQueue:
         self.file.seek(current_pos, 0)
 
     def clear(self):
+        """Removes all elements from queue."""
         with self.lock:
             self.file.close()
             self.file = self._open_file(mode='w+b')
             self.length = 0
 
     def copy(self, new_filename, path=None):
+        """Copies a queue to a new queue."""
         old = os.path.join(self.path, self.filename)
         new = os.path.join(path or self.path, new_filename)
         shutil.copy2(old, new)
@@ -80,9 +87,14 @@ class PersistentQueue:
                                flush_limit=self.flush_limit)
 
     def count(self):
+        """Return the size of the queue."""
         return self.length
 
     def flush(self):
+        """
+        Removes elements that have been deleted or popped from the queue. This
+        will be taken care of by pop and delete.
+        """
         with self.lock:
             pos = self._get_queue_top()
 
@@ -132,6 +144,10 @@ class PersistentQueue:
             self.file = self._open_file()
 
     def pop(self, items=1):
+        """
+        Removes and returns a certain amount of items from the queue. If items
+        is greater than one, a list is returned.
+        """
         with self.lock:
             data = self.peek(items)
             self._set_queue_top(self.file.tell())
@@ -148,6 +164,10 @@ class PersistentQueue:
             return data
 
     def peek(self, items=1):
+        """
+        Returns a certain amount of items from the queue. If items is greater
+        than one, a list is returned.
+        """
         def read_data():
             length = struct.unpack(LENGTH_STRUCT, self.file.read(4))[0]
             data = self.file.read(length)
@@ -167,6 +187,7 @@ class PersistentQueue:
             return data
 
     def delete(self, items=1):
+        """Removes items from queue. Nothing is returned."""
         def read_length():
             length = struct.unpack(LENGTH_STRUCT, self.file.read(4))[0]
             self.file.seek(length, 1)
@@ -185,6 +206,7 @@ class PersistentQueue:
             threading.Thread(target=self.flush)
 
     def push(self, items):
+        """Add items to the queue."""
         def write_data(item):
             data = pickle.dumps(item)
             self.file.write(struct.pack(LENGTH_STRUCT, len(data)))
@@ -204,4 +226,5 @@ class PersistentQueue:
             self._update_length(self.count() + len(items))
 
     def __len__(self):
+        """Get size of queue."""
         return self.count()
