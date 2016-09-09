@@ -1,5 +1,6 @@
 [![Build Status](https://travis-ci.org/philipbl/python-persistent-queue.svg?branch=master)](https://travis-ci.org/philipbl/python-persistent-queue) [![Coverage Status](https://coveralls.io/repos/github/philipbl/python-persistent-queue/badge.svg?branch=master)](https://coveralls.io/github/philipbl/python-persistent-queue?branch=master)
 
+# Description
 
 Implementation of a persistent queue in Python. I looked around and couldn't find anything that fit my needs, so I made my own. Example usage:
 
@@ -41,5 +42,11 @@ success = upload_data_somewhere(data)
 if success:
     queue.delete(5)
 
+```
+
+# Install
+
+```
+pip install python-persistent-queue
 ```
 
