@@ -166,5 +166,9 @@ class TestPersistentQueue(unittest.TestCase):
         self.assertEqual(self.queue.peek(2), [7, 11])
         self.assertEqual(self.queue.pop(2), [7, 11])
 
+        self.queue.push(2)
+        self.queue.delete(1000)
+        self.assertEqual(len(self.queue), 0)
+
 if __name__ == '__main__':
     unittest.main()
