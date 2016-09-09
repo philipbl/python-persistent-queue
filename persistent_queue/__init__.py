@@ -148,6 +148,11 @@ class PersistentQueue:
         Removes and returns a certain amount of items from the queue. If items
         is greater than one, a list is returned.
         """
+
+        # Ignore requests for zero items
+        if items == 0:
+            return []
+
         with self.lock:
             data = self.peek(items)
             self._set_queue_top(self.file.tell())
@@ -173,6 +178,10 @@ class PersistentQueue:
             data = self.file.read(length)
             return pickle.loads(data)
 
+        # Ignore requests for zero items
+        if items == 0:
+            return []
+
         with self.lock:
             self.file.seek(self._get_queue_top(), 0)  # Beginning of data
             total_items = self.count() if items > self.count() else items
@@ -191,6 +200,10 @@ class PersistentQueue:
         def read_length():
             length = struct.unpack(LENGTH_STRUCT, self.file.read(4))[0]
             self.file.seek(length, 1)
+
+        # Ignore requests for zero items
+        if items == 0:
+            return
 
         with self.lock:
             self.file.seek(self._get_queue_top(), 0)  # Beginning of data
@@ -216,6 +229,10 @@ class PersistentQueue:
 
         if not isinstance(items, list):
             items = [items]
+
+        # Ignore requests for adding zero items
+        if len(items) == 0:
+            return
 
         with self.lock:
             self.file.seek(0, 2)  # Go to end of file

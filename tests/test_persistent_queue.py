@@ -55,6 +55,9 @@ class TestPersistentQueue(unittest.TestCase):
         self.queue.push(data)
         self.assertEqual(self.queue.peek(5), [5, 10, 15, 20, data])
 
+        self.queue.push([])
+        self.assertEqual(self.queue.peek(5), [5, 10, 15, 20, data])
+
     def test_pop(self):
         self.queue.push('a')
         self.queue.push('b')
@@ -81,6 +84,10 @@ class TestPersistentQueue(unittest.TestCase):
         self.assertEqual(self.queue.pop(100), [])
         self.assertEqual(self.queue.pop(), None)
 
+        self.queue.push('d')
+        self.assertEqual(self.queue.pop(0), [])
+        self.assertEqual(len(self.queue), 1)
+
     def test_peek(self):
         self.queue.push(1)
         self.queue.push(2)
@@ -100,6 +107,8 @@ class TestPersistentQueue(unittest.TestCase):
         self.assertEqual(self.queue.peek(), 1)
         self.assertEqual(self.queue.peek(1), 1)
         self.assertEqual(self.queue.peek(2), [1])
+
+        self.assertEqual(self.queue.peek(0), [])
 
     def test_big_file(self):
         data = {"a": list(range(1000))}
@@ -169,6 +178,11 @@ class TestPersistentQueue(unittest.TestCase):
         self.queue.push(2)
         self.queue.delete(1000)
         self.assertEqual(len(self.queue), 0)
+
+        self.queue.push(2)
+        self.queue.delete(0)
+        self.assertEqual(len(self.queue), 1)
+
 
 if __name__ == '__main__':
     unittest.main()
