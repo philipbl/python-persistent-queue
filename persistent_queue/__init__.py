@@ -16,10 +16,13 @@ START_OFFSET = 4 + 4
 
 
 class PersistentQueue:
-    def __init__(self, filename, path='.', flush_limit=1048576):
+    def __init__(self, filename, path='.', dumps=pickle.dumps,
+                 loads=pickle.loads, flush_limit=1048576):
         self.filename = filename
         self.path = path
         self.file = self._open_file()
+        self.loads = loads
+        self.dumps = dumps
         self.flush_limit = flush_limit
         self.lock = threading.RLock()
 
@@ -176,7 +179,7 @@ class PersistentQueue:
         def read_data():
             length = struct.unpack(LENGTH_STRUCT, self.file.read(4))[0]
             data = self.file.read(length)
-            return pickle.loads(data)
+            return self.loads(data)
 
         # Ignore requests for zero items
         if items == 0:
@@ -221,7 +224,7 @@ class PersistentQueue:
     def push(self, items):
         """Add items to the queue."""
         def write_data(item):
-            data = pickle.dumps(item)
+            data = self.dumps(item)
             self.file.write(struct.pack(LENGTH_STRUCT, len(data)))
             self.file.write(data)
             self.file.flush()  # Probably not necessary since buffering=0

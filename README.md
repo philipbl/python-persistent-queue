@@ -44,9 +44,20 @@ if success:
 
 ```
 
+By default, `pickle` is used to serialize objects. This can be changed depending on your needs by setting the `dumps` and `loads` options (see Parameters). [dill](http://trac.mystic.cacr.caltech.edu/project/pathos/wiki/dill.html) and [BSON](https://github.com/py-bson/bson) have been tested (see tests as an example).
+
+# Parameters
+
+A persistent queue takes the following parameters:
+
+- `filename` (*required*): The name of the file that will keep the data.
+- `path` (*optional*, default='.'): The directory to put the file.
+- `dumps` (*optional*, default=`pickle.dumps`): The method used to convert a Python object into bytes.
+- `loads` (*optional*, default=`pickle.loads`): The method used to convert bytes into a Python object.
+- `flush_limit` (*optional*, default=1048576): When the amount of empty space in the file is greater than `flush_limit`, the file will be flushed. This balances file I/O and storage space.
+
 # Install
 
 ```
 pip install python-persistent-queue
 ```
-

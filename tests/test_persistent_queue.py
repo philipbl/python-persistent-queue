@@ -110,11 +110,13 @@ class TestPersistentQueue(unittest.TestCase):
 
         self.assertEqual(self.queue.peek(0), [])
 
-    def test_big_file(self):
+    def test_big_file_part_1(self):
         data = {"a": list(range(1000))}
 
         for i in range(2000):
             self.queue.push(data)
+
+        self.assertEqual(len(self.queue), 2000)
 
         for i in range(1995):
             self.assertEqual(self.queue.pop(), data)
@@ -122,7 +124,7 @@ class TestPersistentQueue(unittest.TestCase):
 
         self.assertEqual(len(self.queue), 5)
 
-    def test_big_file_2(self):
+    def test_big_file_part_2(self):
         data = {"a": list(range(1000))}
 
         for i in range(2000):
@@ -182,6 +184,52 @@ class TestPersistentQueue(unittest.TestCase):
         self.queue.push(2)
         self.queue.delete(0)
         self.assertEqual(len(self.queue), 1)
+
+
+class TestPersistentQueueWithDill(TestPersistentQueue):
+    def setUp(self):
+        import dill
+
+        random = str(uuid.uuid4()).replace('-', '')
+        self.filename = '{}_{}'.format(self.id(), random)
+        self.queue = PersistentQueue(self.filename, loads=dill.loads,
+                                     dumps=dill.dumps)
+
+        self.persist_filename = ''
+
+class TestPersistentQueueWithBson(unittest.TestCase):
+    def setUp(self):
+        import bson
+
+        random = str(uuid.uuid4()).replace('-', '')
+        self.filename = '{}_{}'.format(self.id(), random)
+        self.queue = PersistentQueue(self.filename, loads=bson.loads,
+                                     dumps=bson.dumps)
+
+        self.persist_filename = ''
+
+    def test_big_file_part_1(self):
+        data = {"a": list(range(1000))}
+
+        for i in range(2000):
+            self.queue.push(data)
+
+        self.assertEqual(len(self.queue), 2000)
+
+        for i in range(1995):
+            self.assertEqual(self.queue.pop(), data)
+            self.queue.flush()
+
+        self.assertEqual(len(self.queue), 5)
+
+    def test_big_file_part_2(self):
+        data = {"a": list(range(1000))}
+
+        for i in range(2000):
+            self.queue.push(data)
+
+        self.assertEqual(self.queue.pop(1995), [data for i in range(1995)])
+        self.assertEqual(len(self.queue), 5)
 
 
 if __name__ == '__main__':

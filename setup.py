@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '1.0.1'
+VERSION = '1.1.0'
 DOWNLOAD_URL = ('https://github.com/philipbl/python-persistent-queue/archive/'
                 '{}.zip'.format(VERSION))
 PACKAGES = find_packages(exclude=['tests', 'tests.*'])
