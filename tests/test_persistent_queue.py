@@ -208,6 +208,9 @@ class TestPersistentQueueWithBson(unittest.TestCase):
 
         self.persist_filename = ''
 
+    def tearDown(self):
+        os.remove(self.filename)
+
     def test_big_file_part_1(self):
         data = {"a": list(range(1000))}
 
