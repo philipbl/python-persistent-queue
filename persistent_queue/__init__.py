@@ -3,6 +3,7 @@ An implementation of a persistent queue. It is optimized for peeking at values
 and then deleting them off to top of the queue.
 """
 
+import logging
 import os.path
 import pickle
 import shutil
@@ -13,6 +14,8 @@ import uuid
 LENGTH_STRUCT = 'I'
 HEADER_STRUCT = 'II'
 START_OFFSET = 4 + 4
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class PersistentQueue:
@@ -74,10 +77,13 @@ class PersistentQueue:
 
     def clear(self):
         """Removes all elements from queue."""
+        _LOGGER.debug("Clearing the queue")
         with self.lock:
             self.file.close()
             self.file = self._open_file(mode='w+b')
             self.length = 0
+            _LOGGER.debug("The queue has been cleared")
+
 
     def copy(self, new_filename, path=None):
         """Copies a queue to a new queue."""
@@ -98,11 +104,14 @@ class PersistentQueue:
         Removes elements that have been deleted or popped from the queue. This
         will be taken care of by pop and delete.
         """
+        _LOGGER.debug("Flushing the queue")
+
         with self.lock:
             pos = self._get_queue_top()
 
         if pos < self.flush_limit:
             # Ignore if the file isn't big enough -- it's not worth it
+            _LOGGER.debug("Ignoring flush because we haven't met the limit")
             return
 
         # Make a new file
@@ -120,6 +129,7 @@ class PersistentQueue:
             self.file.seek(0, 2)  # Go to end of file
             end = self.file.tell()
 
+            _LOGGER.debug("Writing data to new file")
             # Copy over meta data
             new_file.write(struct.pack(HEADER_STRUCT,
                                        self.count(),
@@ -143,17 +153,22 @@ class PersistentQueue:
             # crashed, the data would still be preserved. Now we are entering
             # the danger zone.
 
+            _LOGGER.debug("Replacing old file with new file")
             os.replace(temp_filename, os.path.join(self.path, self.filename))
             self.file = self._open_file()
+
+            _LOGGER.debug("Finished flushing the queue")
 
     def pop(self, items=1):
         """
         Removes and returns a certain amount of items from the queue. If items
         is greater than one, a list is returned.
         """
+        _LOGGER.debug("Popping %s items", items)
 
         # Ignore requests for zero items
         if items == 0:
+            _LOGGER.debug("Returning empty list")
             return []
 
         with self.lock:
@@ -167,8 +182,10 @@ class PersistentQueue:
                 self._update_length(self.count() - 1)
 
             # I don't want to block sending data back, so start a thread
+            _LOGGER.debug("Spawning thread to flush file")
             threading.Thread(target=self.flush)
 
+            _LOGGER.debug("Returning data from the pop")
             return data
 
     def peek(self, items=1):
@@ -181,8 +198,11 @@ class PersistentQueue:
             data = self.file.read(length)
             return self.loads(data)
 
+        _LOGGER.debug("Peeking %s items", items)
+
         # Ignore requests for zero items
         if items == 0:
+            _LOGGER.debug("Returning empty list")
             return []
 
         with self.lock:
@@ -192,10 +212,13 @@ class PersistentQueue:
 
         if items == 1:
             if len(data) == 0:
+                _LOGGER.debug("No items to peek at so returning None")
                 return None
             else:
+                _LOGGER.debug("Returning data from peek")
                 return data[0]
         else:
+            _LOGGER.debug("Returning data from peek")
             return data
 
     def delete(self, items=1):
@@ -204,8 +227,11 @@ class PersistentQueue:
             length = struct.unpack(LENGTH_STRUCT, self.file.read(4))[0]
             self.file.seek(length, 1)
 
+        _LOGGER.debug("Deleting %s items", items)
+
         # Ignore requests for zero items
         if items == 0:
+            _LOGGER.debug("Ignoring request to delete")
             return
 
         with self.lock:
@@ -219,7 +245,10 @@ class PersistentQueue:
             self._update_length(self.count() - total_items)
 
             # I don't want to block sending data back, so start a thread
+            _LOGGER.debug("Spawning thread to flush file")
             threading.Thread(target=self.flush)
+
+        _LOGGER.debug("Done deleting data")
 
     def push(self, items):
         """Add items to the queue."""
@@ -233,8 +262,11 @@ class PersistentQueue:
         if not isinstance(items, list):
             items = [items]
 
+        _LOGGER.debug("Pushing %s items", len(items))
+
         # Ignore requests for adding zero items
         if len(items) == 0:
+            _LOGGER.debug("Pushing zero items, ignoring request")
             return
 
         with self.lock:
@@ -244,6 +276,8 @@ class PersistentQueue:
                 write_data(i)
 
             self._update_length(self.count() + len(items))
+
+        _LOGGER.debug("Done pushing data")
 
     def __len__(self):
         """Get size of queue."""
