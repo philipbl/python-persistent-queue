@@ -41,10 +41,13 @@ success = upload_data_somewhere(data)
 
 if success:
     queue.delete(5)
+    queue.flush()  # Remove extra space
 
 ```
 
 By default, `pickle` is used to serialize objects. This can be changed depending on your needs by setting the `dumps` and `loads` options (see Parameters). [dill](http://trac.mystic.cacr.caltech.edu/project/pathos/wiki/dill.html) and [BSON](https://github.com/py-bson/bson) have been tested (see tests as an example).
+
+When items are popped or deleted, the data isn't actually deleted. Instead a pointer is moved to the place in the file with valid data. As a result, the file will continue to grow even if items are removed. `persistent_queue.flush()` reclaims this space. **You must call `flush` as you see fit!**
 
 # Parameters
 
@@ -55,7 +58,6 @@ A persistent queue takes the following parameters:
 - `dumps` (*optional*, default=`pickle.dumps`): The method used to convert a Python object into bytes.
 - `loads` (*optional*, default=`pickle.loads`): The method used to convert bytes into a Python object.
 - `flush_limit` (*optional*, default=1048576): When the amount of empty space in the file is greater than `flush_limit`, the file will be flushed. This balances file I/O and storage space.
-- `auto_flush` (*optional*, default=`True`): When data is popped and deleted, the queue file will automatically remove empty space, based on `flush_limit`. By setting this to `False`, the user must decide when to flush the file of unused data.
 
 # Install
 

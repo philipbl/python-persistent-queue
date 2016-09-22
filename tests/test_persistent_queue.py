@@ -11,8 +11,6 @@ class TestPersistentQueue(unittest.TestCase):
         self.filename = '{}_{}'.format(self.id(), random)
         self.queue = PersistentQueue(self.filename)
 
-        self.persist_filename = ''
-
     def tearDown(self):
         os.remove(self.filename)
 
@@ -110,7 +108,7 @@ class TestPersistentQueue(unittest.TestCase):
 
         self.assertEqual(self.queue.peek(0), [])
 
-    def test_big_file_part_1(self):
+    def test_big_file_1(self):
         data = {"a": list(range(1000))}
 
         for i in range(2000):
@@ -124,14 +122,18 @@ class TestPersistentQueue(unittest.TestCase):
 
         self.assertEqual(len(self.queue), 5)
 
-    def test_big_file_part_2(self):
+    def test_big_file_2(self):
         data = {"a": list(range(1000))}
 
         for i in range(2000):
             self.queue.push(data)
 
         self.assertEqual(self.queue.pop(1995), [data for i in range(1995)])
+        self.queue.flush()
         self.assertEqual(len(self.queue), 5)
+
+        import time
+        time.sleep(1)
 
     def test_copy(self):
         new_queue_name = 'another_queue'
@@ -185,13 +187,6 @@ class TestPersistentQueue(unittest.TestCase):
         self.queue.delete(0)
         self.assertEqual(len(self.queue), 1)
 
-class TestPersistentQueueWithNoAutoFlush(TestPersistentQueue):
-    def setUp(self):
-        random = str(uuid.uuid4()).replace('-', '')
-        self.filename = '{}_{}'.format(self.id(), random)
-        self.queue = PersistentQueue(self.filename, auto_flush=False)
-
-        self.persist_filename = ''
 
 class TestPersistentQueueWithDill(TestPersistentQueue):
     def setUp(self):
@@ -202,7 +197,6 @@ class TestPersistentQueueWithDill(TestPersistentQueue):
         self.queue = PersistentQueue(self.filename, loads=dill.loads,
                                      dumps=dill.dumps)
 
-        self.persist_filename = ''
 
 class TestPersistentQueueWithBson(unittest.TestCase):
     def setUp(self):
@@ -213,12 +207,10 @@ class TestPersistentQueueWithBson(unittest.TestCase):
         self.queue = PersistentQueue(self.filename, loads=bson.loads,
                                      dumps=bson.dumps)
 
-        self.persist_filename = ''
-
     def tearDown(self):
         os.remove(self.filename)
 
-    def test_big_file_part_1(self):
+    def test_big_file_1(self):
         data = {"a": list(range(1000))}
 
         for i in range(2000):
@@ -232,13 +224,14 @@ class TestPersistentQueueWithBson(unittest.TestCase):
 
         self.assertEqual(len(self.queue), 5)
 
-    def test_big_file_part_2(self):
+    def test_big_file_2(self):
         data = {"a": list(range(1000))}
 
         for i in range(2000):
             self.queue.push(data)
 
         self.assertEqual(self.queue.pop(1995), [data for i in range(1995)])
+        self.queue.flush()
         self.assertEqual(len(self.queue), 5)
 
 

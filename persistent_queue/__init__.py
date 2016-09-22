@@ -20,14 +20,13 @@ _LOGGER = logging.getLogger(__name__)
 
 class PersistentQueue:
     def __init__(self, filename, path='.', dumps=pickle.dumps,
-                 loads=pickle.loads, flush_limit=1048576, auto_flush=True):
+                 loads=pickle.loads, flush_limit=1048576):
         self.filename = filename
         self.path = path
         self.file = self._open_file()
         self.loads = loads
         self.dumps = dumps
         self.flush_limit = flush_limit
-        self.auto_flush = auto_flush
         self.lock = threading.RLock()
 
         self.file.seek(0, 0)
@@ -84,7 +83,6 @@ class PersistentQueue:
             self.file = self._open_file(mode='w+b')
             self.length = 0
             _LOGGER.debug("The queue has been cleared")
-
 
     def copy(self, new_filename, path=None):
         """Copies a queue to a new queue."""
@@ -182,11 +180,6 @@ class PersistentQueue:
             elif data is not None:
                 self._update_length(self.count() - 1)
 
-            if self.auto_flush:
-                # I don't want to block sending data back, so start a thread
-                _LOGGER.debug("Spawning thread to flush file")
-                threading.Thread(target=self.flush)
-
             _LOGGER.debug("Returning data from the pop")
             return data
 
@@ -245,11 +238,6 @@ class PersistentQueue:
 
             self._set_queue_top(self.file.tell())
             self._update_length(self.count() - total_items)
-
-            if self.auto_flush:
-                # I don't want to block sending data back, so start a thread
-                _LOGGER.debug("Spawning thread to flush file")
-                threading.Thread(target=self.flush)
 
         _LOGGER.debug("Done deleting data")
 
