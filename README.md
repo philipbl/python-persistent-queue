@@ -55,6 +55,7 @@ A persistent queue takes the following parameters:
 - `dumps` (*optional*, default=`pickle.dumps`): The method used to convert a Python object into bytes.
 - `loads` (*optional*, default=`pickle.loads`): The method used to convert bytes into a Python object.
 - `flush_limit` (*optional*, default=1048576): When the amount of empty space in the file is greater than `flush_limit`, the file will be flushed. This balances file I/O and storage space.
+- `auto_flush` (*optional*, default=`True`): When data is popped and deleted, the queue file will automatically remove empty space, based on `flush_limit`. By setting this to `False`, the user must decide when to flush the file of unused data.
 
 # Install
 
