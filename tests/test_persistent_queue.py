@@ -185,6 +185,13 @@ class TestPersistentQueue(unittest.TestCase):
         self.queue.delete(0)
         self.assertEqual(len(self.queue), 1)
 
+class TestPersistentQueueWithNoAutoFlush(TestPersistentQueue):
+    def setUp(self):
+        random = str(uuid.uuid4()).replace('-', '')
+        self.filename = '{}_{}'.format(self.id(), random)
+        self.queue = PersistentQueue(self.filename, auto_flush=False)
+
+        self.persist_filename = ''
 
 class TestPersistentQueueWithDill(TestPersistentQueue):
     def setUp(self):
