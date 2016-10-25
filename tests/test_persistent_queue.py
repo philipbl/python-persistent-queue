@@ -86,6 +86,10 @@ class TestPersistentQueue(unittest.TestCase):
         self.assertEqual(self.queue.pop(0), [])
         self.assertEqual(len(self.queue), 1)
 
+    def test_pop_no_values(self):
+        self.assertEqual(self.queue.pop(5), [])
+        self.assertEqual(self.queue.pop(), None)
+
     def test_peek(self):
         self.queue.push(1)
         self.queue.push(2)
@@ -107,6 +111,10 @@ class TestPersistentQueue(unittest.TestCase):
         self.assertEqual(self.queue.peek(2), [1])
 
         self.assertEqual(self.queue.peek(0), [])
+
+    def test_peek_no_values(self):
+        self.assertEqual(self.queue.peek(5), [])
+        self.assertEqual(self.queue.peek(), None)
 
     def test_big_file_1(self):
         data = {"a": list(range(1000))}
@@ -186,6 +194,10 @@ class TestPersistentQueue(unittest.TestCase):
         self.queue.push(2)
         self.queue.delete(0)
         self.assertEqual(len(self.queue), 1)
+
+    def test_delete_no_values(self):
+        self.queue.delete()
+        self.queue.delete(100)
 
 
 class TestPersistentQueueWithDill(TestPersistentQueue):
