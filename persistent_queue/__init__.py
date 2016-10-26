@@ -27,7 +27,8 @@ class PersistentQueue:
         self.loads = loads
         self.dumps = dumps
         self.flush_limit = flush_limit
-        self.lock = threading.RLock()
+        self.file_lock = threading.RLock()
+        self.pop_lock = threading.RLock()
 
         self.file.seek(0, 0)
         self.length = struct.unpack(HEADER_STRUCT[0], self.file.read(4))[0]
@@ -78,7 +79,7 @@ class PersistentQueue:
     def clear(self):
         """Removes all elements from queue."""
         _LOGGER.debug("Clearing the queue")
-        with self.lock:
+        with self.file_lock, self.pop_lock:
             self.file.close()
             self.file = self._open_file(mode='w+b')
             self.length = 0
@@ -105,7 +106,7 @@ class PersistentQueue:
         """
         _LOGGER.debug("Flushing the queue")
 
-        with self.lock:
+        with self.file_lock:
             pos = self._get_queue_top()
 
         if pos < self.flush_limit:
@@ -119,7 +120,7 @@ class PersistentQueue:
         new_file = open(temp_filename, mode='w+b', buffering=0)
 
         # From this point on, the file can not change
-        with self.lock:
+        with self.file_lock, self.pop_lock:
             # Make sure everything is to disk
             self.file.flush()
             os.fsync(self.file.fileno())
@@ -170,20 +171,22 @@ class PersistentQueue:
             _LOGGER.debug("Returning empty list")
             return []
 
-        with self.lock:
-            data = self.peek(items)
-            self._set_queue_top(self.file.tell())
+        with self.pop_lock:
+            data, queue_top = self._peek(items)
 
-            if isinstance(data, list):
-                if len(data) > 0:
-                    self._update_length(self.count() - len(data))
-            elif data is not None:
-                self._update_length(self.count() - 1)
+            with self.file_lock:
+                self._set_queue_top(queue_top)
 
-            _LOGGER.debug("Returning data from the pop")
-            return data
+                if isinstance(data, list):
+                    if len(data) > 0:
+                        self._update_length(self.count() - len(data))
+                elif data is not None:
+                    self._update_length(self.count() - 1)
 
-    def peek(self, items=1):
+                _LOGGER.debug("Returning data from the pop")
+                return data
+
+    def _peek(self, items=1):
         """
         Returns a certain amount of items from the queue. If items is greater
         than one, a list is returned.
@@ -198,23 +201,28 @@ class PersistentQueue:
         # Ignore requests for zero items
         if items == 0:
             _LOGGER.debug("Returning empty list")
-            return []
+            return [], self.file.tell()
 
-        with self.lock:
+        with self.file_lock:
             self.file.seek(self._get_queue_top(), 0)  # Beginning of data
             total_items = self.count() if items > self.count() else items
             data = [read_data() for i in range(total_items)]
+            queue_top = self.file.tell()
 
         if items == 1:
             if len(data) == 0:
                 _LOGGER.debug("No items to peek at so returning None")
-                return None
+                return None, queue_top
             else:
                 _LOGGER.debug("Returning data from peek")
-                return data[0]
+                return data[0], queue_top
         else:
             _LOGGER.debug("Returning data from peek")
-            return data
+            return data, queue_top
+
+    def peek(self, items=1):
+        with self.pop_lock:
+            return self._peek(items)[0]
 
     def delete(self, items=1):
         """Removes items from queue. Nothing is returned."""
@@ -229,7 +237,7 @@ class PersistentQueue:
             _LOGGER.debug("Ignoring request to delete")
             return
 
-        with self.lock:
+        with self.file_lock, self.pop_lock:
             self.file.seek(self._get_queue_top(), 0)  # Beginning of data
             total_items = self.count() if items > self.count() else items
 
@@ -260,7 +268,7 @@ class PersistentQueue:
             _LOGGER.debug("Pushing zero items, ignoring request")
             return
 
-        with self.lock:
+        with self.file_lock:
             self.file.seek(0, 2)  # Go to end of file
 
             for i in items:

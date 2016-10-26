@@ -214,7 +214,7 @@ class TestPersistentQueue(unittest.TestCase):
                     for i in range(random_number % 10):
                         self.queue.push({"test": [1, 2, 3], "foo": "bar", "1": random_number})
 
-        threads = [threading.Thread(target=random_stuff) for _ in range(100)]
+        threads = [threading.Thread(target=random_stuff) for _ in range(50)]
 
         for t in threads:
             t.start()
