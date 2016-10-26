@@ -1,4 +1,6 @@
 import os
+import random
+import threading
 import unittest
 import uuid
 
@@ -198,6 +200,31 @@ class TestPersistentQueue(unittest.TestCase):
     def test_delete_no_values(self):
         self.queue.delete()
         self.queue.delete(100)
+
+    def test_threads(self):
+        def random_stuff():
+            for i in range(100):
+                random_number = random.randint(0, 1000)
+
+                if random_number % 3 == 0:
+                    self.queue.peek(random_number % 5)
+                elif random_number % 2 == 0:
+                    self.queue.pop(random_number % 5)
+                else:
+                    for i in range(random_number % 10):
+                        self.queue.push({"test": [1, 2, 3], "foo": "bar", "1": random_number})
+
+        threads = [threading.Thread(target=random_stuff) for _ in range(100)]
+
+        for t in threads:
+            t.start()
+
+        for t in threads:
+            t.join()
+
+        # Remove everything that is left so we make sure it is serializable
+        for _ in range(len(self.queue)):
+            self.queue.pop()
 
 
 class TestPersistentQueueWithDill(TestPersistentQueue):
