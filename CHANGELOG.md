@@ -1,3 +1,7 @@
+# v1.2.0
+
+- Add `blocking` option to pop and peek.
+
 # v1.1.2
 
 - Remove `auto_flush` behavior. The user now must flush the file themselves.
