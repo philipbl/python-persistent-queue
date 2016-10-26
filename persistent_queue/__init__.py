@@ -29,6 +29,7 @@ class PersistentQueue:
         self.flush_limit = flush_limit
         self.file_lock = threading.RLock()
         self.pop_lock = threading.RLock()
+        self.pushed_event = threading.Event()
 
         self.file.seek(0, 0)
         self.length = struct.unpack(HEADER_STRUCT[0], self.file.read(4))[0]
@@ -159,7 +160,7 @@ class PersistentQueue:
 
             _LOGGER.debug("Finished flushing the queue")
 
-    def pop(self, items=1):
+    def pop(self, items=1, blocking=False):
         """
         Removes and returns a certain amount of items from the queue. If items
         is greater than one, a list is returned.
@@ -172,7 +173,7 @@ class PersistentQueue:
             return []
 
         with self.pop_lock:
-            data, queue_top = self._peek(items)
+            data, queue_top = self._peek(items, blocking)
 
             with self.file_lock:
                 self._set_queue_top(queue_top)
@@ -186,7 +187,7 @@ class PersistentQueue:
                 _LOGGER.debug("Returning data from the pop")
                 return data
 
-    def _peek(self, items=1):
+    def _peek(self, items=1, blocking=False):
         """
         Returns a certain amount of items from the queue. If items is greater
         than one, a list is returned.
@@ -202,6 +203,10 @@ class PersistentQueue:
         if items == 0:
             _LOGGER.debug("Returning empty list")
             return [], self.file.tell()
+
+        if blocking:
+            while self.count() < items:
+                self.pushed_event.wait()
 
         with self.file_lock:
             self.file.seek(self._get_queue_top(), 0)  # Beginning of data
@@ -220,9 +225,9 @@ class PersistentQueue:
             _LOGGER.debug("Returning data from peek")
             return data, queue_top
 
-    def peek(self, items=1):
+    def peek(self, items=1, blocking=False):
         with self.pop_lock:
-            return self._peek(items)[0]
+            return self._peek(items, blocking)[0]
 
     def delete(self, items=1):
         """Removes items from queue. Nothing is returned."""
@@ -276,6 +281,7 @@ class PersistentQueue:
 
             self._update_length(self.count() + len(items))
 
+        self.pushed_event.set()
         _LOGGER.debug("Done pushing data")
 
     def __len__(self):
