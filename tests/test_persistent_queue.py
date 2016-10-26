@@ -1,6 +1,7 @@
 import os
 import random
 import threading
+import time
 import unittest
 import uuid
 
@@ -88,6 +89,23 @@ class TestPersistentQueue(unittest.TestCase):
         self.assertEqual(self.queue.pop(0), [])
         self.assertEqual(len(self.queue), 1)
 
+    def test_pop_blocking(self):
+        done = False
+        def func():
+            nonlocal done
+            time.sleep(1)
+            done = True
+            self.queue.push(5)
+
+        t = threading.Thread(target=func)
+        t.start()
+
+        self.assertFalse(done)
+        data = self.queue.pop(blocking=True)
+        self.assertTrue(done)
+        self.assertEqual(data, 5)
+        self.assertEqual(len(self.queue), 0)
+
     def test_pop_no_values(self):
         self.assertEqual(self.queue.pop(5), [])
         self.assertEqual(self.queue.pop(), None)
@@ -113,6 +131,44 @@ class TestPersistentQueue(unittest.TestCase):
         self.assertEqual(self.queue.peek(2), [1])
 
         self.assertEqual(self.queue.peek(0), [])
+
+    def test_peek_blocking(self):
+        done = False
+        def func():
+            nonlocal done
+            time.sleep(1)
+            done = True
+            self.queue.push(5)
+
+        t = threading.Thread(target=func)
+        t.start()
+
+        self.assertFalse(done)
+        data = self.queue.peek(blocking=True)
+        self.assertTrue(done)
+        self.assertEqual(data, 5)
+        self.assertEqual(len(self.queue), 1)
+
+    def test_peek_blocking_list(self):
+        done_pushing = False
+        done_peeking = False
+
+        def func():
+            nonlocal done_pushing
+            for i in range(5):
+                time.sleep(.1)
+                self.queue.push(i)
+                self.assertFalse(done_peeking)
+            done_pushing = True
+
+        t = threading.Thread(target=func)
+        t.start()
+
+        data = self.queue.peek(5, blocking=True)
+        done_peeking = True
+        self.assertTrue(done_pushing)
+        self.assertEqual(data, [0, 1, 2, 3, 4])
+        self.assertEqual(len(self.queue), 5)
 
     def test_peek_no_values(self):
         self.assertEqual(self.queue.peek(5), [])
