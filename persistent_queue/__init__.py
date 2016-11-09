@@ -207,6 +207,7 @@ class PersistentQueue:
         if blocking:
             while self.count() < items:
                 self.pushed_event.wait()
+                self.pushed_event.clear()
 
         with self.file_lock:
             self.file.seek(self._get_queue_top(), 0)  # Beginning of data

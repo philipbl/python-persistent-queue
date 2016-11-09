@@ -1,3 +1,6 @@
+# v1.2.1
+- Fix condition where popping thread would be stuck in a busy wait loop (thanks @Kriechi)
+
 # v1.2.0
 
 - Add `blocking` option to pop and peek.
