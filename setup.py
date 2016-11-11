@@ -21,4 +21,14 @@ setup(
     url='https://github.com/philipbl/python-persistent-queue',
     description='A persistent queue. It is optimized for peeking at values and'
                 ' then deleting them off to top of the queue.',
+    classifiers=[
+        "License :: OSI Approved :: MIT License",
+        "Development Status :: 5 - Production/Stable",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+    ],
 )
