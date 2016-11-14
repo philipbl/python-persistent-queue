@@ -1,8 +1,6 @@
 sudo: false
 language: python
-cache:
-  directories:
-    - $HOME/.cache/pip
+cache: pip
 python:
   - "3.4"
   - "3.5"
@@ -11,4 +9,4 @@ install:
 script:
   - "py.test -v --cov persistent_queue"
 after_success:
-    - coveralls
+  - coveralls
