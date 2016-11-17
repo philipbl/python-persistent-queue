@@ -90,19 +90,18 @@ class TestPersistentQueue(unittest.TestCase):
         self.assertEqual(len(self.queue), 1)
 
     def test_pop_blocking(self):
-        done = False
+        done = [False]
         def func():
-            nonlocal done
             time.sleep(1)
-            done = True
+            done[0] = True
             self.queue.push(5)
 
         t = threading.Thread(target=func)
         t.start()
 
-        self.assertFalse(done)
+        self.assertFalse(done[0])
         data = self.queue.pop(blocking=True)
-        self.assertTrue(done)
+        self.assertTrue(done[0])
         self.assertEqual(data, 5)
         self.assertEqual(len(self.queue), 0)
 
@@ -133,40 +132,38 @@ class TestPersistentQueue(unittest.TestCase):
         self.assertEqual(self.queue.peek(0), [])
 
     def test_peek_blocking(self):
-        done = False
+        done = [False]
         def func():
-            nonlocal done
             time.sleep(1)
-            done = True
+            done[0] = True
             self.queue.push(5)
 
         t = threading.Thread(target=func)
         t.start()
 
-        self.assertFalse(done)
+        self.assertFalse(done[0])
         data = self.queue.peek(blocking=True)
-        self.assertTrue(done)
+        self.assertTrue(done[0])
         self.assertEqual(data, 5)
         self.assertEqual(len(self.queue), 1)
 
     def test_peek_blocking_list(self):
-        done_pushing = False
-        done_peeking = False
+        done_pushing = [False]
+        done_peeking = [False]
 
         def func():
-            nonlocal done_pushing
             for i in range(5):
                 time.sleep(.1)
                 self.queue.push(i)
-                self.assertFalse(done_peeking)
-            done_pushing = True
+                self.assertFalse(done_peeking[0])
+            done_pushing[0] = True
 
         t = threading.Thread(target=func)
         t.start()
 
         data = self.queue.peek(5, blocking=True)
-        done_peeking = True
-        self.assertTrue(done_pushing)
+        done_peeking[0] = True
+        self.assertTrue(done_pushing[0])
         self.assertEqual(data, [0, 1, 2, 3, 4])
         self.assertEqual(len(self.queue), 5)
 

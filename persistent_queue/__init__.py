@@ -155,7 +155,8 @@ class PersistentQueue:
             # the danger zone.
 
             _LOGGER.debug("Replacing old file with new file")
-            os.replace(temp_filename, os.path.join(self.path, self.filename))
+            os.remove(os.path.join(self.path, self.filename))
+            os.rename(temp_filename, os.path.join(self.path, self.filename))
             self.file = self._open_file()
 
             _LOGGER.debug("Finished flushing the queue")
