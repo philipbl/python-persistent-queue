@@ -1,6 +1,7 @@
+.tox/
+.cache/
 .python-version
 dist
 python_persistent_queue.egg-info
 *.queue
 *.coverage
-.cache
