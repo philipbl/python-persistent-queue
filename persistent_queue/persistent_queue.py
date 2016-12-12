@@ -127,7 +127,7 @@ class PersistentQueue:
 
                 # Something was added to the queue
                 # Update timeout, if necessary
-                if timeout is not None:
+                if timeout is not None:  # pragma: no cover
                     timeout = target - time.time()
 
         elif not partial and self._length < items:
@@ -229,7 +229,7 @@ class PersistentQueue:
 
                         # Something was removed from the queue
                         # Update timeout, if necessary
-                        if timeout is not None:
+                        if timeout is not None:  # pragma: no cover
                             timeout = target - time.time()
                 else:
                     if self._length + len(items) > self.maxsize:
