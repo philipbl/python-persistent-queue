@@ -14,9 +14,11 @@ matrix:
       env: TOXENV=py35
     - python: "3.6-dev"
       env: TOXENV=py36
+    - python: nightly
+      env: TOXENV=py37
   allow_failures:
-    - python: "3.6-dev"
-      env: TOXENV=py36
+    - python: nightly
+
 install:
   - "pip install tox"
 script:
