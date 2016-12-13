@@ -276,6 +276,23 @@ class TestPersistentQueue:
         assert len(self.queue) == 1
         assert self.queue.get() == None
 
+    def test_return_types(self):
+        self.queue.put([1, 2, 3, 4])
+
+        assert isinstance(self.queue.get(), int)
+        assert isinstance(self.queue.get(items=1), int)
+        assert isinstance(self.queue.get(items=2), list)
+
+        with pytest.raises(queue.Empty):
+            self.queue.get(block=False)
+
+        self.queue.put([5, 6])
+        with pytest.raises(queue.Empty):
+            self.queue.get(items=100, block=False)
+
+        assert isinstance(self.queue.peek(), int)
+        assert isinstance(self.queue.peek(items=2), list)
+
     def test_big_file_1(self):
         data = {b'a': list(range(500))}
 
