@@ -271,26 +271,34 @@ class TestPersistentQueue:
         assert self.queue.get() == 1
 
         assert len(self.queue) == 2
-        assert self.queue.get() == None
+        assert self.queue.get() is None
 
         assert len(self.queue) == 1
-        assert self.queue.get() == None
+        assert self.queue.get() is None
 
     def test_return_types(self):
-        self.queue.put([1, 2, 3, 4])
+        assert self.queue.peek(items=0) == []
+        assert self.queue.peek(items=1) is None
+        assert self.queue.peek(items=2) == []
+        assert self.queue.peek(items=100) == []
 
-        assert isinstance(self.queue.get(), int)
-        assert isinstance(self.queue.get(items=1), int)
-        assert isinstance(self.queue.get(items=2), list)
-
+        assert self.queue.get(items=0, block=False) == []
         with pytest.raises(queue.Empty):
-            self.queue.get(block=False)
-
-        self.queue.put([5, 6])
+            self.queue.get(items=1, block=False)
+        with pytest.raises(queue.Empty):
+            self.queue.get(items=2, block=False)
         with pytest.raises(queue.Empty):
             self.queue.get(items=100, block=False)
 
-        assert isinstance(self.queue.peek(), int)
+        self.queue.put([1, 2, 3, 4, 5])
+
+        assert isinstance(self.queue.get(), int)
+        assert isinstance(self.queue.get(items=0), list)
+        assert isinstance(self.queue.get(items=1), int)
+        assert isinstance(self.queue.get(items=2), list)
+
+        assert isinstance(self.queue.peek(items=0), list)
+        assert isinstance(self.queue.peek(items=1), int)
         assert isinstance(self.queue.peek(items=2), list)
 
     def test_big_file_1(self):

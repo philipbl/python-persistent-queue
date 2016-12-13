@@ -131,7 +131,16 @@ class PersistentQueue:
                     timeout = target - time.time()
 
         elif not partial and self._length < items:
+            # If we are getting data and there is not enough data to get
             raise queue.Empty
+
+        elif partial and self._length == 0:
+            # We are peeking data (partial=True) and there is no data to get
+            # Save some disk IO by returning the result now
+            if items == 1:
+                raise queue.Empty
+            else:
+                return [], None
 
         with self._file_lock:
             self._file.seek(self._get_queue_top(), 0)  # Beginning of data
@@ -140,12 +149,9 @@ class PersistentQueue:
             queue_top = self._file.tell()
 
         if items == 1:
-            if len(data) == 0:
-                _LOGGER.debug("No items to peek at so returning None")
-                return None, queue_top
-            else:
-                _LOGGER.debug("Returning data from peek")
-                return data[0], queue_top
+            _LOGGER.debug("Returning data from peek")
+            # We've insured that len(data) > 0 so data[0] is safe
+            return data[0], queue_top
         else:
             _LOGGER.debug("Returning data from peek")
             return data, queue_top
@@ -283,9 +289,9 @@ class PersistentQueue:
                 self._set_queue_top(queue_top)
 
                 if isinstance(data, list):
-                    if len(data) > 0:
+                    if len(data) > 0:  # Save a write to disk if we can
                         self._update_length(self._length - len(data))
-                elif data is not None:
+                else:
                     self._update_length(self._length - 1)
 
                 self._get_event.set()
@@ -348,7 +354,10 @@ class PersistentQueue:
         Peeks into the queue and returns items without removing them.
         """
         with self._get_lock:
-            return self._peek(block, timeout, items, partial=True)[0]
+            try:
+                return self._peek(block, timeout, items, partial=True)[0]
+            except queue.Empty:
+                return None
 
     def clear(self):
         """
