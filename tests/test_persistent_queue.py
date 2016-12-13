@@ -368,22 +368,22 @@ class TestPersistentQueueWithDill(TestPersistentQueue):
                                      dumps=dill.dumps)
 
 
-class TestPersistentQueueWithBson:
+class TestPersistentQueueWithMsgpack:
     def setup_method(self):
-        import bson
+        import msgpack
 
         random = str(uuid.uuid4()).replace('-', '')
         filename = '{}_{}'.format(self.__class__.__name__, random)
         self.queue = PersistentQueue(filename,
-                                     loads=bson.loads,
-                                     dumps=bson.dumps)
+                                     loads=msgpack.unpackb,
+                                     dumps=msgpack.packb)
 
     def teardown_method(self):
         if os.path.isfile(self.queue.filename):
             os.remove(self.queue.filename)
 
     def test_big_file_1(self):
-        data = {"a": list(range(500))}
+        data = {b"a": list(range(500))}
 
         for i in range(1000):
             self.queue.put(data)
@@ -397,7 +397,7 @@ class TestPersistentQueueWithBson:
         assert len(self.queue) == 5
 
     def test_big_file_2(self):
-        data = {"a": list(range(500))}
+        data = {b"a": list(range(500))}
 
         for i in range(1000):
             self.queue.put(data)
