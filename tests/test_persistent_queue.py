@@ -262,6 +262,20 @@ class TestPersistentQueue:
         self.queue.delete()
         self.queue.delete(100)
 
+    def test_push_none(self):
+        self.queue.put(1)
+        self.queue.put(None)
+        self.queue.put(None)
+
+        assert len(self.queue) == 3
+        assert self.queue.get() == 1
+
+        assert len(self.queue) == 2
+        assert self.queue.get() == None
+
+        assert len(self.queue) == 1
+        assert self.queue.get() == None
+
     def test_big_file_1(self):
         data = {b'a': list(range(500))}
 
