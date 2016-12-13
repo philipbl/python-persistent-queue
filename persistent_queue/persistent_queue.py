@@ -247,13 +247,13 @@ class PersistentQueue:
             self._put_event.set()
             _LOGGER.debug("Done putting data")
 
-    def put_nowait(self, item):
+    def put_nowait(self, items):
         """
         Provides compatibility with stdlib Queue objects.
 
-        Equivalent to put(item, False).
+        Equivalent to put(items, False).
         """
-        self.put(item, block=False)
+        self.put(items, block=False)
 
     def get(self, block=True, timeout=None, items=1):
         """
