@@ -45,7 +45,7 @@ if success:
 
 ```
 
-By default, `pickle` is used to serialize objects. This can be changed depending on your needs by setting the `dumps` and `loads` options (see Parameters). [dill](http://trac.mystic.cacr.caltech.edu/project/pathos/wiki/dill.html) and [BSON](https://github.com/py-bson/bson) have been tested (see tests as an example).
+By default, `pickle` is used to serialize objects. This can be changed depending on your needs by setting the `dumps` and `loads` options (see Parameters). [dill](http://trac.mystic.cacr.caltech.edu/project/pathos/wiki/dill.html) and [msgpack](https://github.com/msgpack/msgpack-python) have been tested (see tests as an example).
 
 When items are popped or deleted, the data isn't actually deleted. Instead a pointer is moved to the place in the file with valid data. As a result, the file will continue to grow even if items are removed. `persistent_queue.flush()` reclaims this space. **You must call `flush` as you see fit!**
 

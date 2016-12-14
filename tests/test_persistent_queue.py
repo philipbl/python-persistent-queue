@@ -78,7 +78,7 @@ class TestPersistentQueue:
         self.queue.put([10, 15, 20])
         assert self.queue.peek(items=4) == [5, 10, 15, 20]
 
-        data = {"a": 1, "b": 2, "c": [1, 2, 3]}
+        data = {b'a': 1, b'b': 2, b'c': [1, 2, 3]}
         self.queue.put(data)
         assert self.queue.peek(items=5) == [5, 10, 15, 20, data]
 
@@ -87,36 +87,36 @@ class TestPersistentQueue:
 
         self.queue.maxsize = 4
         with pytest.raises(queue.Full):
-            self.queue.put('full', timeout=1)
+            self.queue.put(b'full', timeout=1)
 
         with pytest.raises(queue.Full):
-            self.queue.put('full', block=False)
+            self.queue.put(b'full', block=False)
 
     def test_get(self):
-        self.queue.put('a')
-        self.queue.put('b')
+        self.queue.put(b'a')
+        self.queue.put(b'b')
         assert len(self.queue) == 2
 
-        assert self.queue.get() == 'a'
+        assert self.queue.get() == b'a'
         assert len(self.queue) == 1
 
-        assert self.queue.get(items=1) == 'b'
+        assert self.queue.get(items=1) == b'b'
         assert len(self.queue) == 0
 
-        self.queue.put('a')
-        self.queue.put('b')
-        self.queue.put('c')
-        self.queue.put('d')
+        self.queue.put(b'a')
+        self.queue.put(b'b')
+        self.queue.put(b'c')
+        self.queue.put(b'd')
         assert len(self.queue) == 4
 
-        assert self.queue.get(items=3) == ['a', 'b', 'c']
+        assert self.queue.get(items=3) == [b'a', b'b', b'c']
         assert len(self.queue) == 1
 
         with pytest.raises(queue.Empty):
-            assert self.queue.get(block=False, items=100) == ['d']
+            assert self.queue.get(block=False, items=100) == [b'd']
         assert len(self.queue) == 1
 
-        self.queue.put('d')
+        self.queue.put(b'd')
         assert self.queue.get(items=0) == []
         assert len(self.queue) == 2
 
@@ -153,14 +153,14 @@ class TestPersistentQueue:
     def test_peek(self):
         self.queue.put(1)
         self.queue.put(2)
-        self.queue.put("test")
+        self.queue.put(b'test')
 
         assert self.queue.peek() == 1
         assert self.queue.peek(items=1) == 1
         assert self.queue.peek(items=2) == [1, 2]
-        assert self.queue.peek(items=3) == [1, 2, "test"]
+        assert self.queue.peek(items=3) == [1, 2, b'test']
 
-        assert self.queue.peek(items=100) == [1, 2, "test"]
+        assert self.queue.peek(items=100) == [1, 2, b'test']
 
         self.queue.clear()
 
@@ -263,7 +263,7 @@ class TestPersistentQueue:
         self.queue.delete(100)
 
     def test_big_file_1(self):
-        data = {"a": list(range(500))}
+        data = {b'a': list(range(500))}
 
         for i in range(1000):
             self.queue.put(data)
@@ -277,7 +277,7 @@ class TestPersistentQueue:
         assert len(self.queue) == 5
 
     def test_big_file_2(self):
-        data = {"a": list(range(500))}
+        data = {b'a': list(range(500))}
 
         for i in range(1000):
             self.queue.put(data)
@@ -293,17 +293,17 @@ class TestPersistentQueue:
         self.queue.put(1)
         self.queue.put(2)
         self.queue.put(3)
-        self.queue.put(['a', 'b', 'c'])
+        self.queue.put([b'a', b'b', b'c'])
 
         assert self.queue.peek() == 1
-        assert self.queue.peek(items=4) == [1, 2, 3, 'a']
+        assert self.queue.peek(items=4) == [1, 2, 3, b'a']
         assert len(self.queue) == 6
 
-        self.queue.put('foobar')
+        self.queue.put(b'foobar')
 
         assert self.queue.get() == 1
         assert len(self.queue) == 6
-        assert self.queue.get(items=6) == [2, 3, 'a', 'b', 'c', 'foobar']
+        assert self.queue.get(items=6) == [2, 3, b'a', b'b', b'c', b'foobar']
 
     def test_threads(self):
         def random_stuff():
@@ -322,7 +322,7 @@ class TestPersistentQueue:
                         pass
                 else:
                     for i in range(random_number % 10):
-                        self.queue.put({"test": [1, 2, 3], "foo": "bar", "1": random_number})
+                        self.queue.put({'test': [1, 2, 3], 'foo': 'bar', '1': random_number})
 
         threads = [threading.Thread(target=random_stuff) for _ in range(10)]
 
@@ -368,43 +368,12 @@ class TestPersistentQueueWithDill(TestPersistentQueue):
                                      dumps=dill.dumps)
 
 
-class TestPersistentQueueWithBson:
+class TestPersistentQueueWithMsgpack(TestPersistentQueue):
     def setup_method(self):
-        import bson
+        import msgpack
 
         random = str(uuid.uuid4()).replace('-', '')
         filename = '{}_{}'.format(self.__class__.__name__, random)
         self.queue = PersistentQueue(filename,
-                                     loads=bson.loads,
-                                     dumps=bson.dumps)
-
-    def teardown_method(self):
-        if os.path.isfile(self.queue.filename):
-            os.remove(self.queue.filename)
-
-    def test_big_file_1(self):
-        data = {"a": list(range(500))}
-
-        for i in range(1000):
-            self.queue.put(data)
-
-        assert len(self.queue) == 1000
-
-        for i in range(995):
-            assert self.queue.get() == data
-            self.queue.flush()
-
-        assert len(self.queue) == 5
-
-    def test_big_file_2(self):
-        data = {"a": list(range(500))}
-
-        for i in range(1000):
-            self.queue.put(data)
-
-        assert self.queue.get(items=995) == [data for i in range(995)]
-        self.queue.flush()
-        assert len(self.queue) == 5
-
-        import time
-        time.sleep(1)
+                                     loads=msgpack.unpackb,
+                                     dumps=msgpack.packb)
