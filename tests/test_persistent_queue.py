@@ -70,7 +70,7 @@ class TestPersistentQueue:
 
     def test_put(self):
         self.queue.put(5)
-        assert self.queue.peek(items=1) == 5
+        assert self.queue.peek() == 5
 
         self.queue.put_nowait(5)
         assert self.queue.get() == 5
@@ -100,25 +100,23 @@ class TestPersistentQueue:
         assert self.queue.get() == b'a'
         assert len(self.queue) == 1
 
-        assert self.queue.get(items=1) == b'b'
+        assert self.queue.get() == b'b'
         assert len(self.queue) == 0
 
         self.queue.put(b'a')
         self.queue.put(b'b')
         self.queue.put(b'c')
         self.queue.put(b'd')
-        assert len(self.queue) == 4
+        assert len(self.queue) == 3
 
-        assert self.queue.get(items=3) == [b'a', b'b', b'c']
+        assert [self.queue.get(), self.queue.get(), self.queue.get()] == [b'a', b'b', b'c']
         assert len(self.queue) == 1
+        
+        assert self.queue.get() == b'd'
 
         with pytest.raises(queue.Empty):
-            assert self.queue.get(block=False, items=100) == [b'd']
-        assert len(self.queue) == 1
-
-        self.queue.put(b'd')
-        assert self.queue.get(items=0) == []
-        assert len(self.queue) == 2
+            self.queue.get(block=False)
+        assert len(self.queue) == 0
 
     def test_get_blocking(self):
         done = [False]
@@ -142,9 +140,6 @@ class TestPersistentQueue:
 
     def test_get_non_blocking_no_values(self):
         with pytest.raises(queue.Empty):
-            assert self.queue.get(block=False, items=5) == []
-
-        with pytest.raises(queue.Empty):
             self.queue.get(block=False)
 
         with pytest.raises(queue.Empty):
@@ -156,21 +151,19 @@ class TestPersistentQueue:
         self.queue.put(b'test')
 
         assert self.queue.peek() == 1
-        assert self.queue.peek(items=1) == 1
-        assert self.queue.peek(items=2) == [1, 2]
-        assert self.queue.peek(items=3) == [1, 2, b'test']
+        assert self.queue.get() == 1
+        
+        assert self.queue.peek() == 2
+        assert self.queue.get() == 2
 
-        assert self.queue.peek(items=100) == [1, 2, b'test']
+        assert self.queue.peek() == b'test'
+        assert self.queue.get() == b'test'         
 
         self.queue.clear()
 
         self.queue.put(1)
         assert len(self.queue) == 1
         assert self.queue.peek() == 1
-        assert self.queue.peek(items=1) == 1
-        assert self.queue.peek(items=2) == [1]
-
-        assert self.queue.peek(items=0) == []
 
     def test_peek_blocking(self):
         done = [False]
@@ -210,17 +203,21 @@ class TestPersistentQueue:
         assert len(self.queue) == 5
 
     def test_peek_no_values(self):
-        assert self.queue.peek(items=5) == []
-        assert self.queue.peek() is None
+        with pytest.raises(queue.Empty):
+            assert self.queue.peek()
 
     def test_clear(self):
         self.queue.put(5)
         self.queue.put(50)
-
-        assert self.queue.peek(items=2) == [5, 50]
+        
         assert len(self.queue) == 2
+        assert self.queue.peek() == 5
+        
         self.queue.clear()
+        
         assert len(self.queue) == 0
+        with pytest.raises(queue.Empty):
+            assert self.queue.peek()
 
     def test_copy(self):
         new_queue_name = 'another_queue'
@@ -245,22 +242,32 @@ class TestPersistentQueue:
         self.queue.put(11)
         assert len(self.queue) == 4
 
-        self.queue.delete(2)
+        self.queue.delete()
+        assert len(self.queue) == 3
+        
+        self.queue.delete()
         assert len(self.queue) == 2
-        assert self.queue.peek(items=2) == [7, 11]
-        assert self.queue.get(items=2) == [7, 11]
+        
+        assert self.queue.peek() == 7
+        assert self.queue.get() == 7
+        assert self.queue.get() == 11
 
         self.queue.put(2)
-        self.queue.delete(1000)
+        self.queue.delete()
+        self.queue.delete()
+        self.queue.delete()
+        self.queue.delete()
         assert len(self.queue) == 0
 
         self.queue.put(2)
-        self.queue.delete(0)
+        self.queue.put(1)
+        self.queue.delete()
         assert len(self.queue) == 1
 
     def test_delete_no_values(self):
+        assert len(self.queue) == 0
         self.queue.delete()
-        self.queue.delete(100)
+        assert len(self.queue) == 0
 
     def test_big_file_1(self):
         data = {b'a': list(range(500))}
@@ -282,7 +289,8 @@ class TestPersistentQueue:
         for i in range(1000):
             self.queue.put(data)
 
-        assert self.queue.get(items=995) == [data for i in range(995)]
+        for i in range(995):
+            assert self.queue.get() == i
         self.queue.flush()
         assert len(self.queue) == 5
 
