@@ -9,7 +9,6 @@ import pickle
 import shutil
 import struct
 import threading
-import time
 import uuid
 
 try:
@@ -98,7 +97,7 @@ class PersistentQueue:
 
         self._file.seek(current_pos, 0)
         
-    def _peek(self, block=False, timeout=None):    
+    def _peek(self, block=False, timeout=None):
         with self._get_lock:
             _LOGGER.debug("Peeking item")
             
@@ -375,32 +374,22 @@ class PersistentQueue:
 
             _LOGGER.debug("Finished flushing the queue")
 
-    def delete(self, items=1):
+    def delete(self):
         """
-        Removes items from queue.
-
-        items: number of how many items will be deleted
+        Remove item from queue without reading object from file.
         """
-        def read_length():
-            length = struct.unpack(LENGTH_STRUCT, self._file.read(4))[0]
-            self._file.seek(length, 1)
-
-        _LOGGER.debug("Deleting %s items", items)
-
-        # Ignore requests for zero items
-        if items == 0:
-            _LOGGER.debug("Ignoring request to delete")
+        _LOGGER.debug("Deleting item")
+        
+        # If there is nothing in the queue, do nothing
+        if self._length < 1:
             return
 
         with self._file_lock, self._get_lock:
             self._file.seek(self._get_queue_top(), 0)  # Beginning of data
-            total_items = self._length if items > self._length else items
-
-            for _ in range(total_items):
-                read_length()
-
+            length = struct.unpack(LENGTH_STRUCT, self._file.read(4))[0]
+            self._file.seek(length, 1)
             self._set_queue_top(self._file.tell())
-            self._update_length(self._length - total_items)
+            self._update_length(self._length - 1)
 
         _LOGGER.debug("Done deleting data")
 
