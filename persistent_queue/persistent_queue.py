@@ -97,6 +97,32 @@ class PersistentQueue:
         os.fsync(self._file.fileno())
 
         self._file.seek(current_pos, 0)
+        
+    def _peek(self, block=False, timeout=None):    
+        with self._get_lock:
+            _LOGGER.debug("Peeking item")
+            
+            if self._length < 1:
+                if not block:
+                    raise queue.Empty
+                    
+                # Wait for something to be added
+                if self._put_event.wait(timeout) is False:
+                    # Nothing was added to the queue and timeout expired
+                    # This will never happen if timeout is None
+                    raise queue.Empty
+                    
+                self._put_event.clear()
+    
+            with self._file_lock:
+                self._file.seek(self._get_queue_top(), 0)  # Beginning of data
+                length = struct.unpack(LENGTH_STRUCT, self._file.read(4))[0]
+                data = self._file.read(length)
+                item = self.loads(data)
+                
+                queue_top = self._file.tell()
+                
+                return item, queue_top
 
     def qsize(self):
         """
@@ -136,8 +162,6 @@ class PersistentQueue:
         When this function returns, item is guaranteed to be persisted
         into the file and the underlying storage.
 
-        item: single object
-
         Put item into the queue. If optional args block is true and timeout is
         None (the default), block if necessary until a free slot is available.
         If timeout is a positive number, it blocks at most timeout seconds and
@@ -146,51 +170,33 @@ class PersistentQueue:
         slot is immediately available, else raise the Full exception (timeout
         is ignored in that case).
         """
-        def write_data(item):
-            data = self.dumps(item)
-            self._file.write(struct.pack(LENGTH_STRUCT, len(data)))
-            self._file.write(data)
-            self._file.flush()  # Probably not necessary since buffering=0
-            os.fsync(self._file.fileno())
 
-        if not isinstance(items, list):
-            items = [items]
-
-        _LOGGER.debug("Putting %s items", len(items))
-
-        # Ignore requests for adding zero items
-        if len(items) == 0:
-            _LOGGER.debug("Putting zero items, ignoring request")
-            return
+        _LOGGER.debug("Putting item")
 
         with self._put_lock:
-            if self.maxsize > 0:
-                if block:
-                    if timeout is not None:
-                        target = time.time() + timeout
-                    while self._length + len(items) > self.maxsize:
-                        if self._get_event.wait(timeout) is False:
-                            # Nothing was removed from the queue and timeout expired
-                            # This will never happen if timeout is None
-                            raise queue.Full
-                        self._get_event.clear()
+            if self.maxsize > 0 and self._length + 1 > self.maxsize:
+                if not block:
+                    raise queue.Full
+                       
+                if self._get_event.wait(timeout) is False:
+                    # Nothing was removed from the queue and timeout expired
+                    # This will never happen if timeout is None
+                    raise queue.Full
+                    
+                self._get_event.clear()
 
-                        # Something was removed from the queue
-                        # Update timeout, if necessary
-                        if timeout is not None:  # pragma: no cover
-                            timeout = target - time.time()
-                else:
-                    if self._length + len(items) > self.maxsize:
-                        raise queue.Full
+            # Convert the object outside of the file lock
+            data = self.dumps(item)
 
             with self._file_lock:
                 self._file.seek(0, 2)  # Go to end of file
+                self._file.write(struct.pack(LENGTH_STRUCT, len(data)))
+                self._file.write(data)
+                self._file.flush()  # Probably not necessary since buffering=0
+                os.fsync(self._file.fileno())
 
-                for i in items:
-                    write_data(i)
-
-                self._update_length(self._length + len(items))
-                self._unfinished_tasks += len(items)
+                self._update_length(self._length + 1)
+                self._unfinished_tasks += 1
 
             self._put_event.set()
             _LOGGER.debug("Done putting data")
@@ -215,25 +221,14 @@ class PersistentQueue:
         immediately available, else raise the Empty exception (timeout is
         ignored in that case).
         """
-        _LOGGER.debug("Getting %s items", items)
-
-        # Ignore requests for zero items
-        if items == 0:
-            _LOGGER.debug("Returning empty list")
-            return []
+        _LOGGER.debug("Getting item")
 
         with self._get_lock:
-            data, queue_top = self._peek(block, timeout, items)
+            data, queue_top = self._peek(block, timeout)
 
             with self._file_lock:
                 self._set_queue_top(queue_top)
-
-                if isinstance(data, list):
-                    if len(data) > 0:
-                        self._update_length(self._length - len(data))
-                elif data is not None:
-                    self._update_length(self._length - 1)
-
+                self._update_length(self._length - 1)
                 self._get_event.set()
                 _LOGGER.debug("Returning data from get")
                 return data
@@ -288,60 +283,13 @@ class PersistentQueue:
         with self._all_tasks_done:
             while self._unfinished_tasks:
                 self._all_tasks_done.wait()
-
+                
     def peek(self, block=False, timeout=None):
         """
-        Peeks into the queue and returns an item without removing them.
+        Peeks into the queue and returns an item without removing it.
         """
-        
-        def read_data():
-            length = struct.unpack(LENGTH_STRUCT, self._file.read(4))[0]
-            data = self._file.read(length)
-            return self.loads(data)
-            
-        with self._get_lock:
-            _LOGGER.debug("Peeking %s items", items)
-
-            # Ignore requests for zero items
-            if items == 0:
-                _LOGGER.debug("Returning empty list")
-                return [], self._file.tell()
-    
-            if block:
-                if timeout is not None:
-                    target = time.time() + timeout
-                while self._length < items:
-                    if self._put_event.wait(timeout) is False:
-                        # Nothing was added to the queue and timeout expired
-                        # This will never happen if timeout is None
-                        raise queue.Empty
-                    self._put_event.clear()
-    
-                    # Something was added to the queue
-                    # Update timeout, if necessary
-                    if timeout is not None:  # pragma: no cover
-                        timeout = target - time.time()
-    
-            elif not partial and self._length < items:
-                raise queue.Empty
-    
-            with self._file_lock:
-                self._file.seek(self._get_queue_top(), 0)  # Beginning of data
-                total_items = self._length if items > self._length else items
-                data = [read_data() for i in range(total_items)]
-                queue_top = self._file.tell()
-    
-            if items == 1:
-                if len(data) == 0:
-                    _LOGGER.debug("No items to peek at so returning None")
-                    return None, queue_top
-                else:
-                    _LOGGER.debug("Returning data from peek")
-                    return data[0], queue_top
-            else:
-                _LOGGER.debug("Returning data from peek")
-                return data, queue_top
-
+        item, _ = self._peek(block, timeout)
+        return item
 
     def clear(self):
         """
