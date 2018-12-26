@@ -98,58 +98,6 @@ class PersistentQueue:
 
         self._file.seek(current_pos, 0)
 
-    def _peek(self, block, timeout, items, partial=False):
-        """
-        Returns a certain amount of items from the queue. If items is greater
-        than one, a list is returned.
-        """
-        def read_data():
-            length = struct.unpack(LENGTH_STRUCT, self._file.read(4))[0]
-            data = self._file.read(length)
-            return self.loads(data)
-
-        _LOGGER.debug("Peeking %s items", items)
-
-        # Ignore requests for zero items
-        if items == 0:
-            _LOGGER.debug("Returning empty list")
-            return [], self._file.tell()
-
-        if block:
-            if timeout is not None:
-                target = time.time() + timeout
-            while self._length < items:
-                if self._put_event.wait(timeout) is False:
-                    # Nothing was added to the queue and timeout expired
-                    # This will never happen if timeout is None
-                    raise queue.Empty
-                self._put_event.clear()
-
-                # Something was added to the queue
-                # Update timeout, if necessary
-                if timeout is not None:  # pragma: no cover
-                    timeout = target - time.time()
-
-        elif not partial and self._length < items:
-            raise queue.Empty
-
-        with self._file_lock:
-            self._file.seek(self._get_queue_top(), 0)  # Beginning of data
-            total_items = self._length if items > self._length else items
-            data = [read_data() for i in range(total_items)]
-            queue_top = self._file.tell()
-
-        if items == 1:
-            if len(data) == 0:
-                _LOGGER.debug("No items to peek at so returning None")
-                return None, queue_top
-            else:
-                _LOGGER.debug("Returning data from peek")
-                return data[0], queue_top
-        else:
-            _LOGGER.debug("Returning data from peek")
-            return data, queue_top
-
     def qsize(self):
         """
         Provides compatibility with stdlib Queue objects.
@@ -182,13 +130,13 @@ class PersistentQueue:
         """
         return self.maxsize > 0 and self._length >= self.maxsize
 
-    def put(self, items, block=True, timeout=None):
+    def put(self, item, block=True, timeout=None):
         """
         Provides compatibility with stdlib Queue objects.
-        When this function returns, all items are guaranteed to be persisted
+        When this function returns, item is guaranteed to be persisted
         into the file and the underlying storage.
 
-        items: single object, or a list of objects
+        item: single object
 
         Put item into the queue. If optional args block is true and timeout is
         None (the default), block if necessary until a free slot is available.
@@ -247,19 +195,17 @@ class PersistentQueue:
             self._put_event.set()
             _LOGGER.debug("Done putting data")
 
-    def put_nowait(self, items):
+    def put_nowait(self, item):
         """
         Provides compatibility with stdlib Queue objects.
 
-        Equivalent to put(items, False).
+        Equivalent to put(item, False).
         """
-        self.put(items, block=False)
+        self.put(item, block=False)
 
-    def get(self, block=True, timeout=None, items=1):
+    def get(self, block=True, timeout=None):
         """
         Provides compatibility with stdlib Queue objects.
-        items: number of how many items are returned. If items is greater than
-        one, a list is returned.
 
         Remove and return an item from the queue. If optional args block is
         true and timeout is None (the default), block if necessary until an
@@ -303,7 +249,7 @@ class PersistentQueue:
         """
         return self.get(block=False)
 
-    def task_done(self, items=1):
+    def task_done(self):
         """
         Provides compatibility with stdlib Queue objects.
         Taken from the Python 3.5 stdlib: lib/python3.5/queue.py
@@ -343,12 +289,59 @@ class PersistentQueue:
             while self._unfinished_tasks:
                 self._all_tasks_done.wait()
 
-    def peek(self, block=False, timeout=None, items=1):
+    def peek(self, block=False, timeout=None):
         """
-        Peeks into the queue and returns items without removing them.
+        Peeks into the queue and returns an item without removing them.
         """
+        
+        def read_data():
+            length = struct.unpack(LENGTH_STRUCT, self._file.read(4))[0]
+            data = self._file.read(length)
+            return self.loads(data)
+            
         with self._get_lock:
-            return self._peek(block, timeout, items, partial=True)[0]
+            _LOGGER.debug("Peeking %s items", items)
+
+            # Ignore requests for zero items
+            if items == 0:
+                _LOGGER.debug("Returning empty list")
+                return [], self._file.tell()
+    
+            if block:
+                if timeout is not None:
+                    target = time.time() + timeout
+                while self._length < items:
+                    if self._put_event.wait(timeout) is False:
+                        # Nothing was added to the queue and timeout expired
+                        # This will never happen if timeout is None
+                        raise queue.Empty
+                    self._put_event.clear()
+    
+                    # Something was added to the queue
+                    # Update timeout, if necessary
+                    if timeout is not None:  # pragma: no cover
+                        timeout = target - time.time()
+    
+            elif not partial and self._length < items:
+                raise queue.Empty
+    
+            with self._file_lock:
+                self._file.seek(self._get_queue_top(), 0)  # Beginning of data
+                total_items = self._length if items > self._length else items
+                data = [read_data() for i in range(total_items)]
+                queue_top = self._file.tell()
+    
+            if items == 1:
+                if len(data) == 0:
+                    _LOGGER.debug("No items to peek at so returning None")
+                    return None, queue_top
+                else:
+                    _LOGGER.debug("Returning data from peek")
+                    return data[0], queue_top
+            else:
+                _LOGGER.debug("Returning data from peek")
+                return data, queue_top
+
 
     def clear(self):
         """
