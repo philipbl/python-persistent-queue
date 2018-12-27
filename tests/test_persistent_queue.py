@@ -44,7 +44,6 @@ class TestPersistentQueue:
         os.remove(filename)
 
     def test_qsize(self):
-
         assert len(self.queue) == 0
         assert self.queue.qsize() == 0
 
@@ -72,20 +71,23 @@ class TestPersistentQueue:
         self.queue.put(5)
         assert self.queue.peek() == 5
 
-        self.queue.put_nowait(5)
+        self.queue.put_nowait(10)
         assert self.queue.get() == 5
+        assert self.queue.get() == 10
 
-        self.queue.put([10, 15, 20])
-        assert self.queue.peek(items=4) == [5, 10, 15, 20]
+        self.queue.put(None)
+        assert self.queue.get() == None
 
         data = {b'a': 1, b'b': 2, b'c': [1, 2, 3]}
         self.queue.put(data)
-        assert self.queue.peek(items=5) == [5, 10, 15, 20, data]
+        assert self.queue.get() == data
 
         self.queue.put([])
-        assert self.queue.peek(items=5) == [5, 10, 15, 20, data]
+        assert self.queue.get() == []
 
-        self.queue.maxsize = 4
+        self.queue.maxsize = 1
+        self.queue.put(0)
+
         with pytest.raises(queue.Full):
             self.queue.put(b'full', timeout=1)
 
@@ -107,15 +109,16 @@ class TestPersistentQueue:
         self.queue.put(b'b')
         self.queue.put(b'c')
         self.queue.put(b'd')
-        assert len(self.queue) == 3
+        assert len(self.queue) == 4
 
         assert [self.queue.get(), self.queue.get(), self.queue.get()] == [b'a', b'b', b'c']
         assert len(self.queue) == 1
-        
+
         assert self.queue.get() == b'd'
 
         with pytest.raises(queue.Empty):
             self.queue.get(block=False)
+
         assert len(self.queue) == 0
 
     def test_get_blocking(self):
@@ -152,12 +155,12 @@ class TestPersistentQueue:
 
         assert self.queue.peek() == 1
         assert self.queue.get() == 1
-        
+
         assert self.queue.peek() == 2
         assert self.queue.get() == 2
 
         assert self.queue.peek() == b'test'
-        assert self.queue.get() == b'test'         
+        assert self.queue.get() == b'test'
 
         self.queue.clear()
 
@@ -182,7 +185,7 @@ class TestPersistentQueue:
         assert data == 5
         assert len(self.queue) == 1
 
-    def test_peek_blocking_list(self):
+    def test_get_blocking_list(self):
         done_pushing = [False]
         done_peeking = [False]
 
@@ -196,11 +199,11 @@ class TestPersistentQueue:
         t = threading.Thread(target=func)
         t.start()
 
-        data = self.queue.peek(items=5, block=True)
+        data = [self.queue.get(block=True) for i in range(5)]
         done_peeking[0] = True
         assert done_pushing[0] is True
         assert data == [0, 1, 2, 3, 4]
-        assert len(self.queue) == 5
+        assert len(self.queue) == 0
 
     def test_peek_no_values(self):
         with pytest.raises(queue.Empty):
@@ -209,19 +212,23 @@ class TestPersistentQueue:
     def test_clear(self):
         self.queue.put(5)
         self.queue.put(50)
-        
+
         assert len(self.queue) == 2
         assert self.queue.peek() == 5
-        
+
         self.queue.clear()
-        
+
         assert len(self.queue) == 0
         with pytest.raises(queue.Empty):
             assert self.queue.peek()
 
     def test_copy(self):
         new_queue_name = 'another_queue'
-        self.queue.put([5, 4, 3, 2, 1])
+        self.queue.put(5)
+        self.queue.put(4)
+        self.queue.put(3)
+        self.queue.put(2)
+        self.queue.put(1)
         assert len(self.queue) == 5
         assert self.queue.get() == 5
 
@@ -244,10 +251,10 @@ class TestPersistentQueue:
 
         self.queue.delete()
         assert len(self.queue) == 3
-        
+
         self.queue.delete()
         assert len(self.queue) == 2
-        
+
         assert self.queue.peek() == 7
         assert self.queue.get() == 7
         assert self.queue.get() == 11
@@ -290,7 +297,7 @@ class TestPersistentQueue:
             self.queue.put(data)
 
         for i in range(995):
-            assert self.queue.get() == i
+            assert self.queue.get() == data
         self.queue.flush()
         assert len(self.queue) == 5
 
@@ -304,14 +311,15 @@ class TestPersistentQueue:
         self.queue.put([b'a', b'b', b'c'])
 
         assert self.queue.peek() == 1
-        assert self.queue.peek(items=4) == [1, 2, 3, b'a']
-        assert len(self.queue) == 6
+        assert len(self.queue) == 4
 
         self.queue.put(b'foobar')
 
         assert self.queue.get() == 1
-        assert len(self.queue) == 6
-        assert self.queue.get(items=6) == [2, 3, b'a', b'b', b'c', b'foobar']
+        assert len(self.queue) == 4
+
+        for item in [2, 3, [b'a', b'b', b'c'], b'foobar']:
+            assert self.queue.get() == item
 
     def test_threads(self):
         def random_stuff():
@@ -320,12 +328,13 @@ class TestPersistentQueue:
 
                 if random_number % 3 == 0:
                     try:
-                        self.queue.peek(block=False, items=(random_number % 5))
+                        self.queue.peek(block=False)
                     except queue.Empty:
                         pass
                 elif random_number % 2 == 0:
                     try:
-                        self.queue.get(block=False, items=(random_number % 5))
+                        for _ in range(random_number % 5):
+                            self.queue.get(block=False)
                     except queue.Empty:
                         pass
                 else:
