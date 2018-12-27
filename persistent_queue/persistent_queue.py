@@ -96,31 +96,31 @@ class PersistentQueue:
         os.fsync(self._file.fileno())
 
         self._file.seek(current_pos, 0)
-        
+
     def _peek(self, block=False, timeout=None):
         with self._get_lock:
             _LOGGER.debug("Peeking item")
-            
+
             if self._length < 1:
                 if not block:
                     raise queue.Empty
-                    
+
                 # Wait for something to be added
                 if self._put_event.wait(timeout) is False:
                     # Nothing was added to the queue and timeout expired
                     # This will never happen if timeout is None
                     raise queue.Empty
-                    
+
                 self._put_event.clear()
-    
+
             with self._file_lock:
                 self._file.seek(self._get_queue_top(), 0)  # Beginning of data
                 length = struct.unpack(LENGTH_STRUCT, self._file.read(4))[0]
                 data = self._file.read(length)
                 item = self.loads(data)
-                
+
                 queue_top = self._file.tell()
-                
+
                 return item, queue_top
 
     def qsize(self):
@@ -176,12 +176,12 @@ class PersistentQueue:
             if self.maxsize > 0 and self._length + 1 > self.maxsize:
                 if not block:
                     raise queue.Full
-                       
+
                 if self._get_event.wait(timeout) is False:
                     # Nothing was removed from the queue and timeout expired
                     # This will never happen if timeout is None
                     raise queue.Full
-                    
+
                 self._get_event.clear()
 
             # Convert the object outside of the file lock
@@ -282,7 +282,7 @@ class PersistentQueue:
         with self._all_tasks_done:
             while self._unfinished_tasks:
                 self._all_tasks_done.wait()
-                
+
     def peek(self, block=False, timeout=None):
         """
         Peeks into the queue and returns an item without removing it.
@@ -379,7 +379,7 @@ class PersistentQueue:
         Remove item from queue without reading object from file.
         """
         _LOGGER.debug("Deleting item")
-        
+
         # If there is nothing in the queue, do nothing
         if self._length < 1:
             return
