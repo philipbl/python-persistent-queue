@@ -5,3 +5,4 @@ dist
 python_persistent_queue.egg-info
 *.queue
 *.coverage
+*.pyc
