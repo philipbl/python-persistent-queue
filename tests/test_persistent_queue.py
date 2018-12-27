@@ -378,6 +378,12 @@ class TestPersistentQueue:
         self.queue.join()
         assert self.queue.empty() is True
 
+    def test_repr(self):
+        queue_repr = repr(self.queue)
+        assert 'filename' in queue_repr
+        assert 'maxsize' in queue_repr
+        assert 'flush_limit' in queue_repr
+
 
 class TestPersistentQueueWithDill(TestPersistentQueue):
     def setup_method(self):

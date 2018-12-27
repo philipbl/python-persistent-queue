@@ -399,3 +399,19 @@ class PersistentQueue:
         Get size of queue.
         """
         return self._length
+
+    def __repr__(self):
+        """
+        Return a representation of a persistent queue.
+        """
+        string = "PersistentQueue(filename={filename!r}, " + \
+                 "maxsize={maxsize!r}, " + \
+                 "dumps={dumps}, " + \
+                 "loads={loads}, " + \
+                 "flush_limit={flush_limit!r})"
+
+        return string.format(filename=self.filename,
+                             maxsize=self.maxsize,
+                             dumps=self.dumps,
+                             loads=self.loads,
+                             flush_limit=self.flush_limit)
