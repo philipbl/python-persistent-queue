@@ -76,7 +76,7 @@ class TestPersistentQueue:
         assert self.queue.get() == 10
 
         self.queue.put(None)
-        assert self.queue.get() == None
+        assert self.queue.get() is None
 
         data = {b'a': 1, b'b': 2, b'c': [1, 2, 3]}
         self.queue.put(data)
