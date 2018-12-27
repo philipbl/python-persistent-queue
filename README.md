@@ -2,7 +2,24 @@
 
 # Description
 
-Implementation of a persistent queue in Python. I looked around and couldn't find anything that fit my needs, so I made my own. Example usage:
+This is an implementation of a persistent queue in Python. By persistent, I mean that every item that is added to the queue is saved to disk. I had a specific usage pattern in mind, and I couldn't find any exisiting libraries that fit my needs, so I made my own. I tried to make it a drop in replacement for Python's Queue object. My queue object has one extra methods that Python's Queue class does not, `peek`. 
+
+I created this with the following workflow in mind:
+
+```python
+
+data = queue.peek()
+
+success = upload_data_somewhere(data)
+
+if success:
+    queue.delete()
+
+```
+
+In this use case, the data is only deleted from the queue after it has been successfully processed (in this example, uploaded). 
+
+Here is an extended example:
 
 ```python
 from persistent_queue import PersistentQueue
@@ -16,38 +33,24 @@ queue.push(3)
 queue.push(['a', 'b', 'c'])
 
 data = queue.peek()  # 1
-data = queue.peek(4)  # [1, 2, 3, 'a']
 size = len(queue)  # 6
 
 queue.push('foobar')
 
-data = queue.pop()  # 1
+data = queue.get()  # Returns 1
 
-queue.delete(2)
-data = queue.pop()  # 3
+queue.delete()  # Deletes 2
+data = queue.get()  # Returns 3
 
-queue.clear()
+queue.clear()  # Deletes everything from queue
 ```
 
-Objects that are added to the queue must be pickle-able. A file is saved to the file system based on the name given to the queue. The same name must be given if you want the data to persist.
+Objects that are added to the queue must be serializeable (and with default parameters, pickle-able). A file is saved to the file system based on the name given to the queue. The same name must be given if you want the data to persist.
 
-I created this with the following workflow in mind:
-
-```python
-
-data = queue.peek(5)
-
-success = upload_data_somewhere(data)
-
-if success:
-    queue.delete(5)
-    queue.flush()  # Remove extra space
-
-```
 
 By default, `pickle` is used to serialize objects. This can be changed depending on your needs by setting the `dumps` and `loads` options (see Parameters). [dill](http://trac.mystic.cacr.caltech.edu/project/pathos/wiki/dill.html) and [msgpack](https://github.com/msgpack/msgpack-python) have been tested (see tests as an example).
 
-When items are popped or deleted, the data isn't actually deleted. Instead a pointer is moved to the place in the file with valid data. As a result, the file will continue to grow even if items are removed. `persistent_queue.flush()` reclaims this space. **You must call `flush` as you see fit!**
+When `get` or `delete` are called, the data isn't actually deleted. Instead a pointer is moved to the place in the file with valid data. This is to help reduce IO costs. As a result, the file will continue to grow even if items are removed. `persistent_queue.flush()` reclaims this space. **You must call `flush` as you see fit!**
 
 # Parameters
 
