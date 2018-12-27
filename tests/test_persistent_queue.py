@@ -88,8 +88,9 @@ class TestPersistentQueue:
         self.queue.maxsize = 1
         self.queue.put(0)
 
+        # Test that Full exception gets raised after something has been put in queue
         with pytest.raises(queue.Full):
-            self.queue.put(b'full', timeout=1)
+            self.queue.put(b'full', block=True, timeout=1)
 
         with pytest.raises(queue.Full):
             self.queue.put(b'full', block=False)
@@ -115,6 +116,10 @@ class TestPersistentQueue:
         assert len(self.queue) == 1
 
         assert self.queue.get() == b'd'
+
+        # Test that Empty exception gets raised after something has been removed in queue
+        with pytest.raises(queue.Empty):
+            self.queue.get(block=True, timeout=1)
 
         with pytest.raises(queue.Empty):
             self.queue.get(block=False)

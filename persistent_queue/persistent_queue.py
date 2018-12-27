@@ -100,6 +100,7 @@ class PersistentQueue:
     def _peek(self, block=False, timeout=None):
         with self._get_lock:
             _LOGGER.debug("Peeking item")
+            self._put_event.clear()
 
             if self._length < 1:
                 if not block:
@@ -173,6 +174,7 @@ class PersistentQueue:
         _LOGGER.debug("Putting item")
 
         with self._put_lock:
+            self._get_event.clear()
             if self.maxsize > 0 and self._length + 1 > self.maxsize:
                 if not block:
                     raise queue.Full
@@ -181,7 +183,6 @@ class PersistentQueue:
                     # Nothing was removed from the queue and timeout expired
                     # This will never happen if timeout is None
                     raise queue.Full
-
                 self._get_event.clear()
 
             # Convert the object outside of the file lock
