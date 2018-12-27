@@ -260,7 +260,7 @@ class PersistentQueue:
         Raises a ValueError if called more times than there were items placed in the queue.
         """
         with self._all_tasks_done:
-            unfinished = self._unfinished_tasks - items
+            unfinished = self._unfinished_tasks - 1
             if unfinished < 0:
                 raise ValueError('task_done() called too many times')
             if unfinished == 0:
