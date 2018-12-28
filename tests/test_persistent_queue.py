@@ -6,6 +6,11 @@ import uuid
 import pytest
 
 try:
+    from unittest.mock import MagicMock
+except ImportError:
+    from mock import MagicMock
+
+try:
     import queue
 except ImportError:
     import Queue as queue
@@ -378,11 +383,117 @@ class TestPersistentQueue:
         self.queue.join()
         assert self.queue.empty() is True
 
+    def test_close(self):
+        self.queue.put(1)
+        self.queue.close()
+
+        with pytest.raises(ValueError):
+            self.queue.put(2)
+
+        new_queue = PersistentQueue(self.queue.filename,
+                                    dumps=self.queue.dumps,
+                                    loads=self.queue.loads)
+        assert new_queue.get() == 1
+        assert len(new_queue) == 0
+
+    def test_close_threaded_getting(self):
+        def worker():
+            while True:
+                try:
+                    assert self.queue.get() in [1, 2, 3]
+                except ValueError:
+                    return
+
+        t = threading.Thread(target=worker)
+        t.start()
+
+        self.queue.put(1)
+        time.sleep(.2)
+        self.queue.put(2)
+        time.sleep(.2)
+        self.queue.put(3)
+        time.sleep(1)
+
+        self.queue.close()
+
+    def test_close_threaded_putting(self):
+        self.queue.maxsize = 1
+
+        def worker():
+            self.queue.put("test_1")
+
+            while True:
+                try:
+                    self.queue.put("test_2")
+                    assert False
+                except ValueError:
+                    return
+
+        t = threading.Thread(target=worker)
+        t.start()
+
+        time.sleep(1)
+
+        assert len(self.queue) == 1
+        self.queue.close()
+
     def test_repr(self):
         queue_repr = repr(self.queue)
         assert 'filename' in queue_repr
         assert 'maxsize' in queue_repr
         assert 'flush_limit' in queue_repr
+
+    def test_half_write_os_fsync(self):
+        """
+        Test if there is a failure in the middle of putting something into the
+        queue.
+        """
+
+        self.queue.put(1)
+        old_os_fsync = os.fsync
+
+        # Set up failure when calling os.fsync
+        os.fsync = MagicMock(side_effect=Exception('Power shutoff'))
+        with pytest.raises(Exception):
+            self.queue.put(2)
+        self.queue.close()
+
+        os.fsync = old_os_fsync
+        new_queue = PersistentQueue(self.queue.filename,
+                                    dumps=self.queue.dumps,
+                                    loads=self.queue.loads)
+
+        # Failure occurred before the second item was fully added
+        assert len(new_queue) == 1
+        assert new_queue.get() == 1
+        with pytest.raises(queue.Empty):
+            new_queue.get(block=False)
+
+    def test_half_write_update_length(self):
+        """
+        Test if there is a failure in the middle of putting something into the
+        queue.
+        """
+
+        self.queue.put(1)
+        old_update_length = self.queue._update_length
+
+        # Set up failure when calling os.fsync
+        self.queue._update_length = MagicMock(side_effect=Exception('Power shutoff'))
+        with pytest.raises(Exception):
+            self.queue.put(2)
+        self.queue.close()
+
+        self.queue._update_length = old_update_length
+        new_queue = PersistentQueue(self.queue.filename,
+                                    dumps=self.queue.dumps,
+                                    loads=self.queue.loads)
+
+        # Failure occurred before the second item was fully added
+        assert len(new_queue) == 1
+        assert new_queue.get() == 1
+        with pytest.raises(queue.Empty):
+            new_queue.get(block=False)
 
 
 class TestPersistentQueueWithDill(TestPersistentQueue):

@@ -394,6 +394,11 @@ class PersistentQueue:
 
         _LOGGER.debug("Done deleting data")
 
+    def close(self):
+        self._file.close()
+        self._put_event.set()  # Alert threads waiting for a put
+        self._get_event.set()  # Alert threads waiting for a get
+
     def __len__(self):
         """
         Get size of queue.
