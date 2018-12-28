@@ -2,9 +2,9 @@
 
 # Description
 
-This is an implementation of a persistent queue in Python. By persistent, I mean that every item that is added to the queue is saved to disk. I had a specific usage pattern in mind, and I couldn't find any exisiting libraries that fit my needs, so I made my own. I tried to make it a drop in replacement for Python's Queue object. My queue object has one extra methods that Python's Queue class does not, `peek`. 
+This is an implementation of a persistent queue in Python. By persistent, I mean that every item that is added to the queue is saved to disk. I had a specific usage pattern in mind, and I couldn't find any existing libraries that fit my needs, so I made my own. I tried to make it a drop in replacement for Python's [queue.Queue](https://docs.python.org/3/library/queue.html) object. However, I've added a few extra methods that Python's queue.Queue class does not: `peek`, `flush`, `clear`, and `close`.
 
-I created this with the following workflow in mind:
+I created Python persistent queue with the following workflow in mind:
 
 ```python
 
@@ -17,9 +17,37 @@ if success:
 
 ```
 
-In this use case, the data is only deleted from the queue after it has been successfully processed (in this example, uploaded). 
+In this use case, the data is only deleted from the queue after it has been successfully processed (in this example, uploaded).
 
-Here is an extended example:
+Typically, I have two threads, one that is writing data to the queue and another thread that is reading data from the queue and processing it. Something like this:
+
+```python
+
+queue = PersistentQueue('queue')
+
+def consumer():
+    while True:
+        data = queue.peek()  # Blocking call
+        success = upload_data_somewhere(data)
+        if success:
+            queue.delete()
+
+
+def producer():
+    while True:
+        data = read_from_sensor()
+        queue.put(data)
+        time.sleep(1)
+```
+
+Objects that are added to the queue must be serializeable (and with default parameters, pickle-able). A file is saved to the file system based on the name given to the queue.
+
+By default, `pickle` is used to serialize objects. This can be changed depending on your needs by setting the `dumps` and `loads` options (see Parameters). [dill](http://trac.mystic.cacr.caltech.edu/project/pathos/wiki/dill.html) and [msgpack](https://github.com/msgpack/msgpack-python) have been tested (see tests as an example).
+
+When `get()` or `delete()` are called, the data isn't actually deleted. Instead a pointer is moved to the place in the file with valid data. This is to help reduce I/O costs. As a result, the file will continue to grow even if items are removed. `flush()` reclaims this space. **You must call `flush` as you see fit!**
+
+
+# Extended Example
 
 ```python
 from persistent_queue import PersistentQueue
@@ -41,16 +69,16 @@ data = queue.get()  # Returns 1
 
 queue.delete()  # Deletes 2
 data = queue.get()  # Returns 3
+data = queue.get()  # Returns ['a', 'b', 'c']
 
 queue.clear()  # Deletes everything from queue
 ```
 
-Objects that are added to the queue must be serializeable (and with default parameters, pickle-able). A file is saved to the file system based on the name given to the queue. The same name must be given if you want the data to persist.
+# Install
 
-
-By default, `pickle` is used to serialize objects. This can be changed depending on your needs by setting the `dumps` and `loads` options (see Parameters). [dill](http://trac.mystic.cacr.caltech.edu/project/pathos/wiki/dill.html) and [msgpack](https://github.com/msgpack/msgpack-python) have been tested (see tests as an example).
-
-When `get` or `delete` are called, the data isn't actually deleted. Instead a pointer is moved to the place in the file with valid data. This is to help reduce IO costs. As a result, the file will continue to grow even if items are removed. `persistent_queue.flush()` reclaims this space. **You must call `flush` as you see fit!**
+```
+pip install python-persistent-queue
+```
 
 # Parameters
 
@@ -62,8 +90,4 @@ A persistent queue takes the following parameters:
 - `loads` (*optional*, default=`pickle.loads`): The method used to convert bytes into a Python object.
 - `flush_limit` (*optional*, default=1048576): When the amount of empty space in the file is greater than `flush_limit`, the file will be flushed. This balances file I/O and storage space.
 
-# Install
-
-```
-pip install python-persistent-queue
-```
+# Methods
